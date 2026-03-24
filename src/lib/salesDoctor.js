@@ -10,6 +10,8 @@ import {
 export const DEFAULT_PRODUCT_IMAGE =
   'https://cdn.thewirecutter.com/wp-content/media/2026/03/BG-IPHONE-5323.jpg?width=2048&quality=60&crop=2048:1365&auto=webp'
 
+const fallbackCategories = ['Smartphones', 'Accessories', 'Gadgets']
+
 const sampleProducts = Array.from({ length: 20 }, (_, index) => {
   const itemNumber = String(index + 1).padStart(2, '0')
 
@@ -21,6 +23,7 @@ const sampleProducts = Array.from({ length: 20 }, (_, index) => {
     barcode: '1234567890123',
     price: 14999000,
     image: DEFAULT_PRODUCT_IMAGE,
+    category: fallbackCategories[index % fallbackCategories.length],
     isActive: true,
     entity: {
       CS_id: `demo_${itemNumber}`,
@@ -39,6 +42,18 @@ const buildEntityKey = (entity) =>
   entity.SD_id || entity.code_1C || entity.CS_id || ''
 
 const normalizeEntity = (entity) => compactObject(entity)
+
+const addEntityAliases = (map, entity, value) => {
+  if (!value) {
+    return
+  }
+
+  for (const key of [entity.CS_id, entity.SD_id, entity.code_1C]) {
+    if (key) {
+      map.set(String(key), value)
+    }
+  }
+}
 
 let authPromise = null
 
@@ -132,9 +147,7 @@ const callSalesDoctor = async ({
 
 export const loadCatalog = async () => {
   const canLoadLiveCatalog =
-    Boolean(salesDoctorConfig.apiUrl) &&
-    (hasDirectAuth || hasLoginAuth) &&
-    isEntityConfigured(salesDoctorConfig.priceType)
+    Boolean(salesDoctorConfig.apiUrl) && (hasDirectAuth || hasLoginAuth)
 
   if (!canLoadLiveCatalog) {
     return getFallbackCatalog().products
@@ -154,21 +167,47 @@ export const loadCatalog = async () => {
     }
   }
 
-  const [productResult, priceResult] = await Promise.all([
+  const requests = [
     callSalesDoctor({
       apiMethod: 'getProduct',
       params: productParams,
       httpMethod: requestMethod,
     }),
     callSalesDoctor({
-      apiMethod: 'getPrice',
+      apiMethod: 'getProductSubCategory',
       params: {
-        priceType: normalizeEntity(salesDoctorConfig.priceType),
+        page: 1,
+        limit: 100,
       },
-      includeFilial: false,
       httpMethod: requestMethod,
-    }),
-  ])
+    }).catch(() => ({ subCategory: [] })),
+    callSalesDoctor({
+      apiMethod: 'getProductGroup',
+      params: {
+        page: 1,
+        limit: 100,
+      },
+      httpMethod: requestMethod,
+    }).catch(() => ({ productGroup: [] })),
+  ]
+
+  if (isEntityConfigured(salesDoctorConfig.priceType)) {
+    requests.push(
+      callSalesDoctor({
+        apiMethod: 'getPrice',
+        params: {
+          priceType: normalizeEntity(salesDoctorConfig.priceType),
+        },
+        includeFilial: false,
+        httpMethod: requestMethod,
+      }).catch(() => []),
+    )
+  } else {
+    requests.push(Promise.resolve([]))
+  }
+
+  const [productResult, subCategoryResult, productGroupResult, priceResult] =
+    await Promise.all(requests)
 
   const priceMap = new Map(
     (Array.isArray(priceResult) ? priceResult : []).map((entry) => [
@@ -177,14 +216,53 @@ export const loadCatalog = async () => {
     ]),
   )
 
+  const subCategoryMap = new Map()
+  const productGroupMap = new Map()
+
+  for (const subCategory of subCategoryResult.subCategory || []) {
+    addEntityAliases(
+      subCategoryMap,
+      {
+        CS_id: subCategory.CS_id || '',
+        SD_id: subCategory.SD_id || '',
+        code_1C: subCategory.code_1C || '',
+      },
+      subCategory.name || '',
+    )
+  }
+
+  for (const productGroup of productGroupResult.productGroup || []) {
+    addEntityAliases(
+      productGroupMap,
+      {
+        CS_id: productGroup.CS_id || '',
+        SD_id: productGroup.SD_id || '',
+        code_1C: productGroup.code_1C || '',
+      },
+      productGroup.name || '',
+    )
+  }
+
   return (productResult.product || [])
     .filter((product) => product.active === 'Y' || product.active === true)
-    .map((product) => {
+    .map((product, index) => {
       const entity = {
         CS_id: product.CS_id || '',
         SD_id: product.SD_id || '',
         code_1C: product.code_1C || '',
       }
+
+      const resolvedCategory =
+        subCategoryMap.get(String(product.subCategory?.SD_id || '')) ||
+        subCategoryMap.get(String(product.subCategory?.code_1C || '')) ||
+        subCategoryMap.get(String(product.subCategory?.CS_id || '')) ||
+        productGroupMap.get(String(product.productGroup?.SD_id || '')) ||
+        productGroupMap.get(String(product.productGroup?.code_1C || '')) ||
+        productGroupMap.get(String(product.productGroup?.CS_id || '')) ||
+        product.category?.name ||
+        product.subCategory?.name ||
+        product.brand?.name ||
+        fallbackCategories[index % fallbackCategories.length]
 
       return {
         id: buildEntityKey(entity),
@@ -197,6 +275,7 @@ export const loadCatalog = async () => {
             .slice(-6),
         price: priceMap.get(buildEntityKey(entity)) ?? 0,
         image: DEFAULT_PRODUCT_IMAGE,
+        category: resolvedCategory,
         isActive: product.active === 'Y' || product.active === true,
         entity,
       }

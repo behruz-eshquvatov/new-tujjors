@@ -1,4 +1,4 @@
-import { Search, ShoppingCart } from 'lucide-react'
+import { ChevronDown, Search, ShoppingCart } from 'lucide-react'
 import { useDeferredValue, useEffect, useState } from 'react'
 import CartDrawer from '../components/CartDrawer'
 import Pagination from '../components/Pagination'
@@ -47,6 +47,8 @@ const StorePage = () => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -111,9 +113,15 @@ const StorePage = () => {
 
   useEffect(() => {
     setPage(1)
-  }, [deferredSearch])
+  }, [deferredSearch, selectedCategory])
+
+  const categories = ['All', ...new Set(products.map((product) => product.category).filter(Boolean))]
 
   const filteredProducts = products.filter((product) => {
+    if (selectedCategory !== 'All' && product.category !== selectedCategory) {
+      return false
+    }
+
     if (!deferredSearch) {
       return true
     }
@@ -213,6 +221,42 @@ const StorePage = () => {
             {appConfig.title}
           </h1>
 
+          <div className="relative w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setCategoryMenuOpen((open) => !open)}
+              className="inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm font-semibold text-app-text md:min-w-52"
+            >
+              <span className="truncate">{selectedCategory}</span>
+              <ChevronDown
+                size={18}
+                className={`shrink-0 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {categoryMenuOpen && (
+              <div className="absolute top-[calc(100%+0.5rem)] left-0 z-30 max-h-72 w-full overflow-y-auto rounded-2xl border border-app-border bg-app-surface p-2 shadow-soft">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(category)
+                      setCategoryMenuOpen(false)
+                    }}
+                    className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                      selectedCategory === category
+                        ? 'bg-app-accent-soft font-semibold text-app-text'
+                        : 'text-app-text-soft hover:bg-app-surface-muted hover:text-app-text'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <label className="relative w-full md:max-w-sm">
             <span className="sr-only">Qidirish</span>
             <Search
@@ -251,8 +295,9 @@ const StorePage = () => {
         <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-app-text">
-              {formatCount(filteredProducts.length)}ta mahsulot
+              {formatCount(filteredProducts.length)} ta mahsulot
             </p>
+            <p className="text-sm text-app-text-soft">{selectedCategory}</p>
           </div>
         </div>
 
