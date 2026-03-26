@@ -28,12 +28,18 @@ const ProductCard = ({
   return (
     <article className="card-radius max-w-125 mx-auto flex h-full w-full flex-col overflow-hidden border border-app-border bg-app-surface shadow-soft">
       <div className="h-64 overflow-hidden bg-app-surface-muted sm:h-56 md:h-64">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm font-semibold text-app-text-soft">
+            Rasm mavjud emas
+          </div>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-3 md:p-4">

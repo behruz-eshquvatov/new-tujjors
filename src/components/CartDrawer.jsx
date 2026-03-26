@@ -67,22 +67,22 @@ const CartDrawer = ({
                     key={item.id}
                     className="card-radius border border-app-border bg-app-surface-muted p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="text-sm font-bold text-app-text">{item.name}</h3>
                         <p className="mt-1 text-xs text-app-text-soft">{item.barcode || item.code}</p>
                       </div>
-                      <p className="text-right text-sm font-extrabold text-app-text">
+                      <p className="text-sm font-extrabold text-app-text sm:text-right">
                         {formatPrice(item.price * item.quantity)}
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="mt-4 flex flex-col gap-3">
                       <p className="text-sm text-app-text-soft">
                         {item.quantity} x {formatPrice(item.price)}
                       </p>
 
-                      <div className="grid grid-cols-6 gap-2">
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                         <button
                           type="button"
                           onClick={() => onAdjustItemQuantity(item, -5)}
@@ -103,7 +103,7 @@ const CartDrawer = ({
                           min="1"
                           value={item.quantity}
                           onChange={(event) => onUpdateItemQuantity(item, event.target.value)}
-                          className="rounded-xl border border-app-border bg-app-surface px-2 py-2 text-center text-sm font-bold text-app-text"
+                          className="min-w-0 rounded-xl border border-app-border bg-app-surface px-2 py-2 text-center text-sm font-bold text-app-text"
                         />
                         <button
                           type="button"

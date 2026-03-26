@@ -1,19 +1,222 @@
-import { ChevronRight, Menu, Search, ShoppingCart, X } from 'lucide-react'
-import { useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
 import CartDrawer from '../components/CartDrawer'
 import Pagination from '../components/Pagination'
 import ProductCard from '../components/ProductCard'
+import StoreHeader, {
+  ALL_CATEGORIES,
+  ALL_SUBCATEGORIES,
+} from '../components/StoreHeader.jsx'
 import { formatCount } from '../lib/format'
-import { getFallbackCatalog, loadCatalog, submitOrder } from '../lib/salesDoctor'
+import { submitOrder } from '../lib/salesDoctor'
 
 const ITEMS_PER_PAGE = 6
-const ALL_CATEGORIES = 'All'
-const ALL_SUBCATEGORIES = 'All'
 const EMPTY_FORM = {
   customerName: '',
   customerPhone: '',
   note: '',
 }
+const SAMPLE_PRODUCTS = [
+  {
+    id: 'sample-01',
+    name: 'iPhone 15 Pro Max 256GB',
+    code: 'PHONE-001',
+    barcode: '100000000001',
+    price: 18990000,
+    image: 'https://picsum.photos/seed/store-01/800/600',
+    category: 'Smartphones',
+    subCategory: 'Flagship',
+  },
+  {
+    id: 'sample-02',
+    name: 'Samsung Galaxy S24 Ultra',
+    code: 'PHONE-002',
+    barcode: '100000000002',
+    price: 17490000,
+    image: 'https://picsum.photos/seed/store-02/800/600',
+    category: 'Smartphones',
+    subCategory: 'Flagship',
+  },
+  {
+    id: 'sample-03',
+    name: 'Xiaomi Redmi Note 13',
+    code: 'PHONE-003',
+    barcode: '100000000003',
+    price: 4299000,
+    image: 'https://picsum.photos/seed/store-03/800/600',
+    category: 'Smartphones',
+    subCategory: 'Midrange',
+  },
+  {
+    id: 'sample-04',
+    name: 'Tecno Spark 20',
+    code: 'PHONE-004',
+    barcode: '100000000004',
+    price: 2199000,
+    image: 'https://picsum.photos/seed/store-04/800/600',
+    category: 'Smartphones',
+    subCategory: 'Budget',
+  },
+  {
+    id: 'sample-05',
+    name: 'Baseus Clear Case',
+    code: 'CASE-001',
+    barcode: '100000000005',
+    price: 149000,
+    image: 'https://picsum.photos/seed/store-05/800/600',
+    category: 'Accessories',
+    subCategory: 'Cases',
+  },
+  {
+    id: 'sample-06',
+    name: 'Silicone MagSafe Case',
+    code: 'CASE-002',
+    barcode: '100000000006',
+    price: 199000,
+    image: 'https://picsum.photos/seed/store-06/800/600',
+    category: 'Accessories',
+    subCategory: 'Cases',
+  },
+  {
+    id: 'sample-07',
+    name: 'Apple 20W Charger',
+    code: 'CHARGE-001',
+    barcode: '100000000007',
+    price: 329000,
+    image: 'https://picsum.photos/seed/store-07/800/600',
+    category: 'Accessories',
+    subCategory: 'Chargers',
+  },
+  {
+    id: 'sample-08',
+    name: 'Anker Nano Fast Charger',
+    code: 'CHARGE-002',
+    barcode: '100000000008',
+    price: 289000,
+    image: 'https://picsum.photos/seed/store-08/800/600',
+    category: 'Accessories',
+    subCategory: 'Chargers',
+  },
+  {
+    id: 'sample-09',
+    name: 'USB-C to USB-C Cable 1m',
+    code: 'CABLE-001',
+    barcode: '100000000009',
+    price: 79000,
+    image: 'https://picsum.photos/seed/store-09/800/600',
+    category: 'Accessories',
+    subCategory: 'Cables',
+  },
+  {
+    id: 'sample-10',
+    name: 'Lightning Cable 2m',
+    code: 'CABLE-002',
+    barcode: '100000000010',
+    price: 99000,
+    image: 'https://picsum.photos/seed/store-10/800/600',
+    category: 'Accessories',
+    subCategory: 'Cables',
+  },
+  {
+    id: 'sample-11',
+    name: 'Apple Watch Series 9',
+    code: 'WEAR-001',
+    barcode: '100000000011',
+    price: 5999000,
+    image: 'https://picsum.photos/seed/store-11/800/600',
+    category: 'Gadgets',
+    subCategory: 'Wearables',
+  },
+  {
+    id: 'sample-12',
+    name: 'Huawei Watch GT 4',
+    code: 'WEAR-002',
+    barcode: '100000000012',
+    price: 3299000,
+    image: 'https://picsum.photos/seed/store-12/800/600',
+    category: 'Gadgets',
+    subCategory: 'Wearables',
+  },
+  {
+    id: 'sample-13',
+    name: 'AirPods Pro 2',
+    code: 'AUDIO-001',
+    barcode: '100000000013',
+    price: 3199000,
+    image: 'https://picsum.photos/seed/store-13/800/600',
+    category: 'Gadgets',
+    subCategory: 'Audio',
+  },
+  {
+    id: 'sample-14',
+    name: 'JBL Tune 770NC',
+    code: 'AUDIO-002',
+    barcode: '100000000014',
+    price: 1899000,
+    image: 'https://picsum.photos/seed/store-14/800/600',
+    category: 'Gadgets',
+    subCategory: 'Audio',
+  },
+  {
+    id: 'sample-15',
+    name: 'Mi Smart Home Hub',
+    code: 'HOME-001',
+    barcode: '100000000015',
+    price: 899000,
+    image: 'https://picsum.photos/seed/store-15/800/600',
+    category: 'Gadgets',
+    subCategory: 'Smart Home',
+  },
+  {
+    id: 'sample-16',
+    name: 'Smart LED Bulb',
+    code: 'HOME-002',
+    barcode: '100000000016',
+    price: 129000,
+    image: 'https://picsum.photos/seed/store-16/800/600',
+    category: 'Gadgets',
+    subCategory: 'Smart Home',
+  },
+  {
+    id: 'sample-17',
+    name: 'Nothing Phone 2a',
+    code: 'PHONE-005',
+    barcode: '100000000017',
+    price: 5899000,
+    image: 'https://picsum.photos/seed/store-17/800/600',
+    category: 'Smartphones',
+    subCategory: 'Midrange',
+  },
+  {
+    id: 'sample-18',
+    name: 'Infinix Hot 40i',
+    code: 'PHONE-006',
+    barcode: '100000000018',
+    price: 1999000,
+    image: 'https://picsum.photos/seed/store-18/800/600',
+    category: 'Smartphones',
+    subCategory: 'Budget',
+  },
+  {
+    id: 'sample-19',
+    name: 'Spigen Armor Case',
+    code: 'CASE-003',
+    barcode: '100000000019',
+    price: 169000,
+    image: 'https://picsum.photos/seed/store-19/800/600',
+    category: 'Accessories',
+    subCategory: 'Cases',
+  },
+  {
+    id: 'sample-20',
+    name: 'Marshall Minor IV',
+    code: 'AUDIO-003',
+    barcode: '100000000020',
+    price: 2299000,
+    image: 'https://picsum.photos/seed/store-20/800/600',
+    category: 'Gadgets',
+    subCategory: 'Audio',
+  },
+]
 
 const ToneClasses = {
   info: 'border-app-border bg-app-surface text-app-text',
@@ -29,44 +232,6 @@ const clampQuantity = (value) => {
   }
 
   return parsed
-}
-
-const buildCategoryTree = (products) => {
-  const categoryMap = new Map()
-
-  for (const product of products) {
-    const categoryName = product.category || 'Boshqa'
-    const subCategoryName = product.subCategory || ''
-
-    if (!categoryMap.has(categoryName)) {
-      categoryMap.set(categoryName, {
-        name: categoryName,
-        count: 0,
-        subCategories: new Map(),
-      })
-    }
-
-    const categoryEntry = categoryMap.get(categoryName)
-    categoryEntry.count += 1
-
-    if (subCategoryName && subCategoryName !== categoryName) {
-      categoryEntry.subCategories.set(
-        subCategoryName,
-        (categoryEntry.subCategories.get(subCategoryName) || 0) + 1,
-      )
-    }
-  }
-
-  return Array.from(categoryMap.values())
-    .sort((left, right) => left.name.localeCompare(right.name))
-    .map((category) => ({
-      name: category.name,
-      count: category.count,
-      subCategories: Array.from(category.subCategories, ([name, count]) => ({
-        name,
-        count,
-      })).sort((left, right) => left.name.localeCompare(right.name)),
-    }))
 }
 
 const LoadingGrid = () => (
@@ -97,8 +262,6 @@ const StorePage = () => {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
   const [selectedSubCategory, setSelectedSubCategory] = useState(ALL_SUBCATEGORIES)
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
-  const [expandedCategory, setExpandedCategory] = useState(null)
   const [page, setPage] = useState(1)
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -109,93 +272,22 @@ const StorePage = () => {
   const [customerForm, setCustomerForm] = useState(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [status, setStatus] = useState(null)
-  const categoryTriggerRef = useRef(null)
-  const categoryDrawerRef = useRef(null)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
 
   useEffect(() => {
-    let isMounted = true
-
-    const bootstrap = async () => {
-      try {
-        setLoading(true)
-        const result = await loadCatalog()
-
-        if (!isMounted) {
-          return
-        }
-
-        if (!result.length) {
-          const fallback = getFallbackCatalog()
-          setProducts(fallback.products)
-          setStatus({
-            tone: 'info',
-            text: fallback.message,
-          })
-          return
-        }
-
-        setProducts(result)
-      } catch {
-        if (!isMounted) {
-          return
-        }
-
-        const fallback = getFallbackCatalog()
-        setProducts(fallback.products)
-        setStatus({
-          tone: 'info',
-          text: fallback.message,
-        })
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    bootstrap()
-
-    return () => {
-      isMounted = false
-    }
+    setProducts(SAMPLE_PRODUCTS)
+    setStatus({
+      tone: 'info',
+      text: "StorePage hozir sample 20 ta karta bilan ishlayapti.",
+    })
+    setLoading(false)
   }, [])
 
   useEffect(() => {
     setPage(1)
   }, [deferredSearch, selectedCategory, selectedSubCategory])
 
-  useEffect(() => {
-    if (!categoryMenuOpen) {
-      return undefined
-    }
-
-    const handlePointerDown = (event) => {
-      const clickedTrigger = categoryTriggerRef.current?.contains(event.target)
-      const clickedDrawer = categoryDrawerRef.current?.contains(event.target)
-
-      if (!clickedTrigger && !clickedDrawer) {
-        setCategoryMenuOpen(false)
-      }
-    }
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setCategoryMenuOpen(false)
-      }
-    }
-
-    window.addEventListener('mousedown', handlePointerDown)
-    window.addEventListener('keydown', handleEscape)
-
-    return () => {
-      window.removeEventListener('mousedown', handlePointerDown)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [categoryMenuOpen])
-
-  const categoryTree = buildCategoryTree(products)
   const selectedFilterLabel =
     selectedCategory === ALL_CATEGORIES
       ? "Barcha bo'limlar"
@@ -231,38 +323,19 @@ const StorePage = () => {
   )
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  const toggleCategoryMenu = () => {
-    const nextOpen = !categoryMenuOpen
-    setCategoryMenuOpen(nextOpen)
-
-    if (nextOpen && selectedCategory !== ALL_CATEGORIES) {
-      setExpandedCategory(selectedCategory)
-    }
-  }
-
   const selectAllCategories = () => {
     setSelectedCategory(ALL_CATEGORIES)
     setSelectedSubCategory(ALL_SUBCATEGORIES)
-    setExpandedCategory(null)
-    setCategoryMenuOpen(false)
   }
 
   const selectCategory = (category) => {
     setSelectedCategory(category)
     setSelectedSubCategory(ALL_SUBCATEGORIES)
-    setExpandedCategory(category)
-    setCategoryMenuOpen(false)
   }
 
   const selectSubCategory = (category, subCategory) => {
     setSelectedCategory(category)
     setSelectedSubCategory(subCategory)
-    setExpandedCategory(category)
-    setCategoryMenuOpen(false)
-  }
-
-  const toggleCategorySection = (category) => {
-    setExpandedCategory((current) => (current === category ? null : category))
   }
 
   const openQuantityEditor = (product) => {
@@ -380,243 +453,18 @@ const StorePage = () => {
 
   return (
     <main className="flex min-h-dvh flex-col overflow-hidden bg-app-bg">
-      <header className="shrink-0 border-b border-app-border bg-app-surface">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-4 md:flex-nowrap">
-          <div ref={categoryTriggerRef} className="w-full md:w-auto">
-            <button
-              type="button"
-              onClick={toggleCategoryMenu}
-              aria-label="Open categories"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-app-surface text-app-text"
-            >
-              <Menu size={18} />
-            </button>
-          </div>
-
-          <label className="relative w-full md:flex-1">
-            <span className="sr-only">Qidirish</span>
-            <Search
-              size={18}
-              className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-app-text-soft"
-            />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nomi yoki bar kod"
-              className="w-full rounded-2xl border border-app-border bg-app-surface-muted py-3 pr-4 pl-11 text-sm text-app-text"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={() => setCartOpen(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-app-accent px-4 py-3 text-sm font-bold text-app-accent-contrast"
-          >
-            <ShoppingCart size={18} />
-            <span>Savat {totalItems > 0 ? `(${formatCount(totalItems)})` : ''}</span>
-          </button>
-        </div>
-      </header>
-
-      {categoryMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/35">
-          <div className="flex h-full">
-            <aside
-              ref={categoryDrawerRef}
-              className="flex h-full w-full max-w-sm flex-col border-r border-app-border bg-app-surface shadow-soft"
-            >
-              <div className="flex items-start justify-between gap-3 border-b border-app-border px-5 py-4">
-                <div>
-                  <p className="text-sm font-extrabold text-app-text">Kategoriyalar</p>
-                  <p className="mt-1 text-xs text-app-text-soft">
-                    Asosiy bo&apos;lim va ichki bo&apos;limni tanlang
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setCategoryMenuOpen(false)}
-                  className="rounded-full border border-app-border p-2 text-app-text-soft"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                <button
-                  type="button"
-                  onClick={selectAllCategories}
-                  className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                    selectedCategory === ALL_CATEGORIES
-                      ? 'border-app-accent bg-app-accent text-app-accent-contrast shadow-soft'
-                      : 'border-app-border bg-app-surface-muted text-app-text'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span>
-                      <span className="block text-sm font-bold">Barchasi</span>
-                      <span
-                        className={`mt-1 block text-xs ${
-                          selectedCategory === ALL_CATEGORIES
-                            ? 'text-app-accent-contrast/80'
-                            : 'text-app-text-soft'
-                        }`}
-                      >
-                        Hamma mahsulotlarni ko&apos;rsatish
-                      </span>
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        selectedCategory === ALL_CATEGORIES
-                          ? 'bg-white/20 text-app-accent-contrast'
-                          : 'bg-app-surface text-app-text-soft'
-                      }`}
-                    >
-                      {formatCount(products.length)}
-                    </span>
-                  </span>
-                </button>
-
-                <div className="mt-3 space-y-2">
-                  {categoryTree.map((category) => {
-                    const hasChildren = category.subCategories.length > 0
-                    const isExpanded = expandedCategory === category.name
-                    const isCategoryActive =
-                      selectedCategory === category.name &&
-                      selectedSubCategory === ALL_SUBCATEGORIES
-                    const hasActiveChild =
-                      selectedCategory === category.name &&
-                      selectedSubCategory !== ALL_SUBCATEGORIES
-
-                    return (
-                      <div
-                        key={category.name}
-                        className="rounded-2xl border border-app-border bg-app-surface-muted"
-                      >
-                        <div className="flex items-center gap-2 p-2">
-                          <button
-                            type="button"
-                            onClick={() => selectCategory(category.name)}
-                            className={`flex-1 rounded-xl px-3 py-3 text-left transition ${
-                              isCategoryActive
-                                ? 'bg-app-accent text-app-accent-contrast shadow-soft'
-                                : 'text-app-text hover:bg-app-surface'
-                            }`}
-                          >
-                            <span className="flex items-center justify-between gap-3">
-                              <span className="min-w-0">
-                                <span className="block truncate text-sm font-bold">
-                                  {category.name}
-                                </span>
-                                <span
-                                  className={`mt-1 block text-xs ${
-                                    isCategoryActive
-                                      ? 'text-app-accent-contrast/80'
-                                      : 'text-app-text-soft'
-                                  }`}
-                                >
-                                  {hasChildren
-                                    ? "Ichki bo'limlarni ochish yoki hammasini tanlash"
-                                    : 'Bo&apos;limdagi mahsulotlar'}
-                                </span>
-                              </span>
-                              <span
-                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                  isCategoryActive
-                                    ? 'bg-white/20 text-app-accent-contrast'
-                                    : 'bg-app-surface text-app-text-soft'
-                                }`}
-                              >
-                                {formatCount(category.count)}
-                              </span>
-                            </span>
-                          </button>
-
-                          {hasChildren && (
-                            <button
-                              type="button"
-                              onClick={() => toggleCategorySection(category.name)}
-                              className={`rounded-xl border border-app-border bg-app-surface px-3 py-3 transition ${
-                                isExpanded || hasActiveChild
-                                  ? 'border-app-accent bg-app-accent-soft text-app-text'
-                                  : 'text-app-text-soft'
-                              }`}
-                              aria-label={`${category.name} sub-kategoriyalarini ochish`}
-                            >
-                              <ChevronRight
-                                size={18}
-                                className={`transition-transform ${
-                                  isExpanded || hasActiveChild ? 'rotate-90' : ''
-                                }`}
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        {(isExpanded || hasActiveChild) && hasChildren && (
-                          <div className="border-t border-app-border px-2 pb-2">
-                            <button
-                              type="button"
-                              onClick={() => selectCategory(category.name)}
-                              className={`mt-2 w-full rounded-xl px-3 py-2 text-left text-sm transition ${
-                                isCategoryActive
-                                  ? 'bg-app-accent font-semibold text-app-accent-contrast'
-                                  : 'text-app-text-soft hover:bg-app-surface hover:text-app-text'
-                              }`}
-                            >
-                              Hammasi
-                            </button>
-
-                            {category.subCategories.map((subCategory) => {
-                              const isSubCategoryActive =
-                                selectedCategory === category.name &&
-                                selectedSubCategory === subCategory.name
-
-                              return (
-                                <button
-                                  key={subCategory.name}
-                                  type="button"
-                                  onClick={() =>
-                                    selectSubCategory(category.name, subCategory.name)
-                                  }
-                                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
-                                    isSubCategoryActive
-                                      ? 'bg-app-accent font-semibold text-app-accent-contrast'
-                                      : 'text-app-text-soft hover:bg-app-surface hover:text-app-text'
-                                  }`}
-                                >
-                                  <span className="truncate">{subCategory.name}</span>
-                                  <span
-                                    className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                                      isSubCategoryActive
-                                        ? 'bg-white/20 text-app-accent-contrast'
-                                        : 'bg-app-surface text-app-text-soft'
-                                    }`}
-                                  >
-                                    {formatCount(subCategory.count)}
-                                  </span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </aside>
-
-            <button
-              type="button"
-              onClick={() => setCategoryMenuOpen(false)}
-              className="hidden flex-1 md:block"
-              aria-label="Close categories"
-            />
-          </div>
-        </div>
-      )}
+      <StoreHeader
+        products={products}
+        search={search}
+        onSearchChange={setSearch}
+        totalItems={totalItems}
+        onOpenCart={() => setCartOpen(true)}
+        selectedCategory={selectedCategory}
+        selectedSubCategory={selectedSubCategory}
+        onSelectAllCategories={selectAllCategories}
+        onSelectCategory={selectCategory}
+        onSelectSubCategory={selectSubCategory}
+      />
 
       <section className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-4">
         {status && (
