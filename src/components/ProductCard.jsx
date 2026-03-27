@@ -64,9 +64,6 @@ const ProductCard = ({
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span className={`rounded-full px-3 py-1 font-semibold ${stockTone}`}>
-                  {stockLevel > 0 ? `Omborda: ${stockLevel} ta` : 'Omborda yo`q'}
-                </span>
 
                 {product.packQuantity > 0 && (
                   <span className="rounded-full bg-app-surface-muted px-3 py-1 font-semibold text-app-text-soft">
