@@ -35,7 +35,7 @@ const ProductCard = ({
 
   return (
     <article className="card-radius max-w-125 mx-auto flex h-full w-full flex-col overflow-hidden border border-app-border bg-app-surface shadow-soft">
-      <div className="h-64 overflow-hidden bg-app-surface-muted sm:h-56 md:h-64">
+      <div className="w-full aspect-square overflow-hidden bg-app-surface-muted sm:h-56 md:h-64">
         {product.image ? (
           <img
             src={product.image}
