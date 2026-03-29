@@ -1,11 +1,11 @@
-import { defaultDealerApiBaseUrl } from "./dealerApi.js";
-
-const defaultDealerOrderEndpoint =
-  process.env.DEALER_ORDER_ENDPOINT ||
-  `${defaultDealerApiBaseUrl.replace(/\/$/, "")}/api/dealers/send-order/`;
+import { getDealerApiBaseUrl } from "./dealerApi.js";
 
 const compactText = (value) =>
   typeof value === "string" ? value.trim() : "";
+
+const getDealerOrderEndpoint = () =>
+  compactText(process.env.DEALER_ORDER_ENDPOINT) ||
+  `${getDealerApiBaseUrl().replace(/\/$/, "")}/api/dealers/send-order/`;
 
 const normalizeCartItem = (item) => {
   const quantity = Number(item?.quantity) || 0;
@@ -82,7 +82,8 @@ const readErrorMessage = (payload, fallbackMessage) => {
 
 export const sendDealerOrder = async (payload) => {
   const dealerPayload = buildDealerOrderPayload(payload);
-  const response = await fetch(defaultDealerOrderEndpoint, {
+  const dealerOrderEndpoint = getDealerOrderEndpoint();
+  const response = await fetch(dealerOrderEndpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -107,7 +108,7 @@ export const sendDealerOrder = async (payload) => {
   return {
     status: true,
     result: data,
-    forwardedTo: defaultDealerOrderEndpoint,
+    forwardedTo: dealerOrderEndpoint,
     payload: dealerPayload,
   };
 };

@@ -1,14 +1,16 @@
-const authTtlMs = Number(process.env.SALESDOC_AUTH_TTL_MS || 4 * 60 * 1000);
 const defaultPriceTypeId = "d0_2";
-
-const defaultFilial = {
-  filial_id: Number(process.env.SALESDOC_FILIAL_ID || 0),
-};
 
 const authCacheByKey = new Map();
 
 const compactText = (value) =>
   typeof value === "string" ? value.trim() : "";
+
+const getAuthTtlMs = () =>
+  Number(process.env.SALESDOC_AUTH_TTL_MS || 4 * 60 * 1000);
+
+const getDefaultFilial = () => ({
+  filial_id: Number(process.env.SALESDOC_FILIAL_ID || 0),
+});
 
 const normalizeSalesDocBaseUrl = (value) => {
   const baseUrl = compactText(value);
@@ -113,7 +115,7 @@ export const getSalesDocAuth = async (
     .then((token) => {
       setAuthCacheEntry(cacheKey, {
         token,
-        expiresAt: Date.now() + authTtlMs,
+        expiresAt: Date.now() + getAuthTtlMs(),
         pending: null,
       });
 
@@ -166,7 +168,7 @@ const requestSalesDocWithAuth = async (
 };
 
 const buildSalesDocPayload = (method, params) => ({
-  filial: defaultFilial,
+  filial: getDefaultFilial(),
   method,
   params,
 });

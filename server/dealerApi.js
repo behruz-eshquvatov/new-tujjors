@@ -1,6 +1,3 @@
-const defaultDealerApiBaseUrl =
-  process.env.DEALER_API_BASE_URL || "http://localhost:8005";
-
 const defaultPriceTypeId = "d0_2";
 
 const compactText = (value) =>
@@ -15,6 +12,9 @@ const normalizeBaseUrl = (value) => {
 
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
 };
+
+export const getDealerApiBaseUrl = () =>
+  compactText(process.env.DEALER_API_BASE_URL) || "http://localhost:8005";
 
 const readJsonResponse = async (response) => {
   const text = await response.text();
@@ -65,7 +65,7 @@ export const fetchDealerConfig = async (dealerId) => {
     throw new Error("Dealer ID is required.");
   }
 
-  const baseUrl = normalizeBaseUrl(defaultDealerApiBaseUrl);
+  const baseUrl = normalizeBaseUrl(getDealerApiBaseUrl());
   const endpoint = new URL(`api/dealers/info/${resolvedDealerId}/`, baseUrl);
   const response = await fetch(endpoint, {
     method: "GET",
@@ -101,5 +101,3 @@ export const fetchDealerConfig = async (dealerId) => {
     priceTypeId,
   };
 };
-
-export { defaultDealerApiBaseUrl };
