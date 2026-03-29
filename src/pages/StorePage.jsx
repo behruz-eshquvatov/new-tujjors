@@ -6,7 +6,9 @@ import StoreHeader, {
   ALL_CATEGORIES,
   ALL_SUBCATEGORIES,
 } from '../components/StoreHeader.jsx'
+import { dealerSiteEndpoint } from '../lib/env'
 import { formatCount } from '../lib/format'
+import { submitDealerOrder } from '../lib/orders'
 import { loadSalesDocProducts } from '../lib/salesDoc'
 import { staticCategories, staticProducts } from '../lib/staticStore'
 
@@ -61,8 +63,29 @@ const LoadingGrid = () => (
   </>
 )
 
+const resolveDealerAccess = () => {
+  if (typeof window === 'undefined') {
+    return {
+      hasAccess: false,
+      dealerLink: dealerSiteEndpoint || '',
+    }
+  }
+
+  const pathSegments = window.location.pathname
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+  const dealerId = pathSegments[0] || ''
+
+  return {
+    hasAccess: Boolean(dealerId),
+    dealerLink: dealerSiteEndpoint || dealerId,
+  }
+}
+
 const StorePage = () => {
   const fallbackCategories = useMemo(() => staticCategories, [])
+  const dealerAccess = useMemo(() => resolveDealerAccess(), [])
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [isProductsLoading, setIsProductsLoading] = useState(true)
@@ -86,6 +109,17 @@ const StorePage = () => {
     let cancelled = false
 
     const fetchProducts = async () => {
+      if (!dealerAccess.hasAccess) {
+        setProducts([])
+        setCategories([])
+        setStatus({
+          tone: 'error',
+          text: 'No dealer found',
+        })
+        setIsProductsLoading(false)
+        return
+      }
+
       try {
         setIsProductsLoading(true)
         setStatus({
@@ -131,7 +165,7 @@ const StorePage = () => {
     return () => {
       cancelled = true
     }
-  }, [fallbackCategories])
+  }, [dealerAccess.hasAccess, fallbackCategories])
 
   useEffect(() => {
     setPage(1)
@@ -270,13 +304,15 @@ const StorePage = () => {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
-      await new Promise((resolve) => window.setTimeout(resolve, 350))
 
       const payload = {
         customer: customerForm,
         cart,
         createdAt: new Date().toISOString(),
+        link: dealerAccess.dealerLink,
       }
+
+      const response = await submitDealerOrder(payload)
 
       window.localStorage.setItem('new-tujjors-last-order', JSON.stringify(payload))
 
@@ -286,12 +322,25 @@ const StorePage = () => {
       setCustomerForm(EMPTY_FORM)
       setStatus({
         tone: 'success',
-        text: "Buyurtma brauzerda mahalliy saqlandi. Hech qanday API ishlatilmadi.",
+        text:
+          response?.result?.message ||
+          "Buyurtma dealer serverga yuborildi.",
       })
     } catch (error) {
+      const payload = {
+        customer: customerForm,
+        cart,
+        createdAt: new Date().toISOString(),
+        link: dealerAccess.dealerLink,
+      }
+
+      window.localStorage.setItem('new-tujjors-last-order-failed', JSON.stringify(payload))
+
       setStatus({
         tone: 'error',
-        text: error.message || 'Buyurtmani mahalliy saqlashda xatolik yuz berdi.',
+        text: `${
+          error.message || "Buyurtmani dealer serverga yuborib bo'lmadi."
+        } Nusxa brauzerda saqlandi.`,
       })
     } finally {
       setIsSubmitting(false)

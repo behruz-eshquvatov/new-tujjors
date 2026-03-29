@@ -2,6 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 
+import { sendDealerOrder } from "./dealerOrder.js";
 import { fetchSalesDocCatalog, getSalesDocAuth } from "./salesDoc.js";
 
 dotenv.config({ quiet: true });
@@ -43,6 +44,21 @@ app.post("/api/salesdoc/products", async (_request, response) => {
       status: false,
       error: "Failed to fetch SalesDoc catalog",
       details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+app.post("/api/dealers/send-order", async (request, response) => {
+  try {
+    const data = await sendDealerOrder(request.body || {});
+
+    response.json(data);
+  } catch (error) {
+    response.status(error?.statusCode || 500).json({
+      status: false,
+      error: "Failed to send dealer order",
+      details: error instanceof Error ? error.message : "Unknown error",
+      upstream: error?.responsePayload || null,
     });
   }
 });
