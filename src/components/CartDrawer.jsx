@@ -1,16 +1,18 @@
-import { NotebookText, Phone, ShoppingCart, Trash2, User, X } from 'lucide-react'
+import { Phone, ShoppingCart, Trash2, User, X } from 'lucide-react'
 import { formatCount, formatPrice } from '../lib/format'
 
 const CartDrawer = ({
   isOpen,
   cart,
   customerForm,
+  validationErrors = {},
   isSubmitting,
   onClose,
   onAdjustItemQuantity,
   onRemoveItem,
   onUpdateItemQuantity,
   onFieldChange,
+  onFieldBlur,
   onSubmit,
 }) => {
   if (!isOpen) {
@@ -19,6 +21,8 @@ const CartDrawer = ({
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalPrice = cart.reduce((sum, item) => sum + item.quantity * item.price, 0)
+  const nameError = validationErrors.customerName
+  const phoneError = validationErrors.customerPhone
 
   return (
     <div className="fixed inset-0 z-40 bg-black/35">
@@ -142,10 +146,16 @@ const CartDrawer = ({
                 <input
                   type="text"
                   value={customerForm.customerName}
+                  onBlur={() => onFieldBlur?.('customerName')}
                   onChange={(event) => onFieldChange('customerName', event.target.value)}
-                  placeholder="Ixtiyoriy"
-                  className="w-full rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
+                  placeholder="Ismingiz"
+                  autoComplete="name"
+                  aria-invalid={Boolean(nameError)}
+                  className={`w-full rounded-2xl border bg-app-surface-muted px-4 py-3 text-sm text-app-text ${
+                    nameError ? 'border-app-danger' : 'border-app-border'
+                  }`}
                 />
+                {nameError && <p className="mt-2 text-sm text-app-danger">{nameError}</p>}
               </label>
 
               <label className="block">
@@ -156,25 +166,19 @@ const CartDrawer = ({
                 <input
                   type="tel"
                   value={customerForm.customerPhone}
+                  onBlur={() => onFieldBlur?.('customerPhone')}
                   onChange={(event) => onFieldChange('customerPhone', event.target.value)}
-                  placeholder="+998"
-                  className="w-full rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
+                  placeholder="+998 90 123 45 67"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  aria-invalid={Boolean(phoneError)}
+                  className={`w-full rounded-2xl border bg-app-surface-muted px-4 py-3 text-sm text-app-text ${
+                    phoneError ? 'border-app-danger' : 'border-app-border'
+                  }`}
                 />
+                {phoneError && <p className="mt-2 text-sm text-app-danger">{phoneError}</p>}
               </label>
 
-              <label className="block">
-                <span className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-app-text-soft">
-                  <NotebookText size={14} />
-                  Eslatma
-                </span>
-                <textarea
-                  rows="3"
-                  value={customerForm.note}
-                  onChange={(event) => onFieldChange('note', event.target.value)}
-                  placeholder="Mahalliy eslatma"
-                  className="w-full rounded-2xl border border-app-border bg-app-surface-muted px-4 py-3 text-sm text-app-text"
-                />
-              </label>
             </div>
           </div>
 

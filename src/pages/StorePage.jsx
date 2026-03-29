@@ -23,7 +23,6 @@ const VISIBLE_PRODUCTS_STEP = 9
 const EMPTY_FORM = {
   customerName: '',
   customerPhone: '',
-  note: '',
 }
 
 const ToneClasses = {
@@ -41,6 +40,59 @@ const clampQuantity = (value) => {
 
   return parsed
 }
+
+const compactCustomerText = (value) =>
+  typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''
+
+const normalizeCustomerName = (value) => compactCustomerText(value)
+
+const normalizeCustomerPhone = (value) => {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  const digits = raw.replace(/\D/g, '')
+
+  if (digits.length === 9) {
+    return `+998${digits}`
+  }
+
+  if (digits.length === 12 && digits.startsWith('998')) {
+    return `+${digits}`
+  }
+
+  if (raw.startsWith('+') && digits) {
+    return `+${digits}`
+  }
+
+  return raw
+}
+
+const countLetters = (value) => value.replace(/[^\p{L}]/gu, '').length
+
+const validateCustomerForm = (form) => {
+  const customerName = normalizeCustomerName(form.customerName)
+  const customerPhone = normalizeCustomerPhone(form.customerPhone)
+  const errors = {}
+
+  if (!customerName) {
+    errors.customerName = 'Ism kiritilishi shart.'
+  } else if (countLetters(customerName) < 2) {
+    errors.customerName = "Ism kamida 2 ta harfdan iborat bo'lsin."
+  } else if (/\d/.test(customerName)) {
+    errors.customerName = "Ism ichida raqam bo'lmasin."
+  }
+
+  if (!customerPhone) {
+    errors.customerPhone = 'Telefon raqami kiritilishi shart.'
+  } else if (!/^\+998\d{9}$/.test(customerPhone)) {
+    errors.customerPhone = "Telefon +998901234567 formatida bo'lsin."
+  }
+
+  return errors
+}
+
+const normalizeCustomerForm = (form) => ({
+  customerName: normalizeCustomerName(form.customerName),
+  customerPhone: normalizeCustomerPhone(form.customerPhone),
+})
 
 const EmptyGrid = ({ searchTerm }) => (
   <div className="card-radius flex h-full min-h-0 flex-col items-center justify-center border border-dashed border-app-border bg-app-surface p-8 text-center">
@@ -98,11 +150,20 @@ const StorePage = () => {
     quantity: '1',
   })
   const [customerForm, setCustomerForm] = useState(EMPTY_FORM)
+  const [touchedFields, setTouchedFields] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [status, setStatus] = useState(null)
   const loadMoreTriggerRef = useRef(null)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
+  const customerFormErrors = useMemo(() => validateCustomerForm(customerForm), [customerForm])
+  const visibleCustomerFormErrors = useMemo(
+    () => ({
+      customerName: touchedFields.customerName ? customerFormErrors.customerName : '',
+      customerPhone: touchedFields.customerPhone ? customerFormErrors.customerPhone : '',
+    }),
+    [customerFormErrors, touchedFields],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -349,13 +410,47 @@ const StorePage = () => {
     updateCartItem(product, nextQuantity)
   }
 
+  const handleCustomerFieldChange = (field, value) => {
+    const nextValue =
+      field === 'customerPhone' ? value.replace(/[^\d+\s()-]/g, '') : value
+
+    setCustomerForm((currentForm) => ({
+      ...currentForm,
+      [field]: nextValue,
+    }))
+  }
+
+  const handleCustomerFieldBlur = (field) => {
+    setTouchedFields((currentTouchedFields) => ({
+      ...currentTouchedFields,
+      [field]: true,
+    }))
+  }
+
   const handleSubmit = async () => {
+    const normalizedCustomerForm = normalizeCustomerForm(customerForm)
+    const nextErrors = validateCustomerForm(normalizedCustomerForm)
+
+    setTouchedFields({
+      customerName: true,
+      customerPhone: true,
+    })
+
+    if (Object.keys(nextErrors).length > 0) {
+      setCustomerForm(normalizedCustomerForm)
+      setStatus({
+        tone: 'error',
+        text: "Buyurtmani yuborish uchun ism va telefonni to'g'ri kiriting.",
+      })
+      return
+    }
+
     try {
       setIsSubmitting(true)
 
       const payload = {
         dealerId: dealerAccess.dealerId,
-        customer: customerForm,
+        customer: normalizedCustomerForm,
         cart,
         createdAt: new Date().toISOString(),
         link: dealerAccess.dealerId,
@@ -369,6 +464,7 @@ const StorePage = () => {
       setCartOpen(false)
       closeQuantityEditor()
       setCustomerForm(EMPTY_FORM)
+      setTouchedFields({})
       setStatus({
         tone: 'success',
         text:
@@ -378,7 +474,7 @@ const StorePage = () => {
     } catch (error) {
       const payload = {
         dealerId: dealerAccess.dealerId,
-        customer: customerForm,
+        customer: normalizedCustomerForm,
         cart,
         createdAt: new Date().toISOString(),
         link: dealerAccess.dealerId,
@@ -481,12 +577,9 @@ const StorePage = () => {
         onAdjustItemQuantity={adjustCartItemQuantity}
         onRemoveItem={removeFromCart}
         onUpdateItemQuantity={updateCartItemQuantity}
-        onFieldChange={(field, value) =>
-          setCustomerForm((currentForm) => ({
-            ...currentForm,
-            [field]: value,
-          }))
-        }
+        validationErrors={visibleCustomerFormErrors}
+        onFieldChange={handleCustomerFieldChange}
+        onFieldBlur={handleCustomerFieldBlur}
         onSubmit={handleSubmit}
       />
     </main>
