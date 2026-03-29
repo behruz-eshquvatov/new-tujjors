@@ -195,10 +195,7 @@ const StorePage = () => {
 
         setProducts(salesDocData.products)
         setCategories(salesDocData.categories)
-        setStatus({
-          tone: 'success',
-          text: `${formatCount(salesDocData.products.length)} ta mahsulot SalesDoc orqali yuklandi.`,
-        })
+        setStatus(null)
       } catch (error) {
         if (cancelled) {
           return

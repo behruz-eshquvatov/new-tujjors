@@ -1,5 +1,5 @@
 import { ShoppingCart } from 'lucide-react'
-import { formatPrice } from '../lib/format'
+import { formatPrice, formatPriceValue } from '../lib/format'
 
 const clampQuantity = (value) => {
   const parsed = Number.parseInt(value, 10)
@@ -54,6 +54,8 @@ const ProductCard = ({
   onSaveQuantity,
 }) => {
   const parsedQuantity = clampQuantity(editorQuantity)
+  const priceAmount = formatPriceValue(product.price)
+
   return (
     <article className="card-radius max-w-125 mx-auto flex h-full w-full flex-col overflow-hidden border border-app-border bg-app-surface shadow-soft">
       <div className="relative w-full aspect-square overflow-hidden bg-app-surface-muted">
@@ -92,19 +94,37 @@ const ProductCard = ({
         </div>
 
         {!isEditorOpen && (
-          <div className="mt-4">
-            <p className="text-xs text-app-text-soft">Narx</p>
-            <p className="text-sm font-extrabold text-app-text md:text-lg">
-              {formatPrice(product.price)}
-            </p>
+          <div className="mt-5 flex items-end justify-between gap-3">
+            <div className="min-w-0 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-app-text-soft">
+                Narxi:
+              </p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <span className="whitespace-nowrap text-xl font-black leading-none tracking-[-0.04em] text-app-text md:text-[26px]">
+                  {priceAmount} so&apos;m
+                </span>
+                <span className=" text-base font-bold text-app-text-soft md:text-base">
+                  
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onOpenEditor(product)}
+              aria-label={quantityInCart > 0 ? 'Savatni yangilash' : "Savatga qo'shish"}
+              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-app-accent bg-app-accent text-app-accent-contrast transition hover:opacity-90"
+            >
+              <ShoppingCart size={22} strokeWidth={2.1} />
+            </button>
           </div>
         )}
 
-        <div className="mt-4">
+        <div className="">
           {isEditorOpen ? (
             <div className="">
-              <div className="-mt-1 grid grid-cols-11 gap-2">
-                {[ -5, -1].map((step) => (
+              <div className=" grid grid-cols-11 gap-2">
+                {[-5, -1].map((step) => (
                   <button
                     key={step}
                     type="button"
@@ -121,7 +141,7 @@ const ProductCard = ({
                   min="1"
                   value={editorQuantity}
                   onChange={(event) => onChangeEditorQuantity(event.target.value)}
-                  className="col-span-3 rounded-2xl border border-app-border bg-app-surface px-4 py-4 text-center text-2xl font-extrabold text-app-text"
+                  className="col-span-3 rounded-[1.4rem] border-2 border-app-accent bg-app-surface px-4 py-4 text-center text-2xl font-extrabold text-app-text shadow-[0_0_0_3px_rgba(15,118,110,0.14)] focus:outline-none"
                 />
 
                 {[1, 5].map((step) => (
@@ -136,11 +156,11 @@ const ProductCard = ({
                 ))}
               </div>
 
-              <div className="mt-3 rounded-2xl bg-app-surface px-4 py-3 text-sm text-app-text">
+              <div className=" rounded-2xl bg-app-surface px-4 py-3 text-sm text-app-text">
                 Jami: <span className="font-extrabold">{formatPrice(product.price * parsedQuantity)}</span>
               </div>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-1 flex gap-2">
                 <button
                   type="button"
                   onClick={onCloseEditor}
@@ -157,20 +177,7 @@ const ProductCard = ({
                 </button>
               </div>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onOpenEditor(product)}
-              className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition hover:opacity-90 ${
-                quantityInCart > 0
-                  ? 'border border-app-border bg-app-accent-soft text-app-text'
-                  : 'bg-app-accent text-app-accent-contrast'
-              }`}
-            >
-              <ShoppingCart size={16} strokeWidth={2.2} />
-              <span>{quantityInCart > 0 ? `Savatda ${quantityInCart} ta` : 'Sotib olish'}</span>
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
     </article>
