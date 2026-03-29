@@ -1,5 +1,6 @@
 import heroImage from '../assets/hero.png'
 import {
+  logFrontendApiConfig,
   salesDocAssetBaseEndpoint,
   salesDocProductsEndpoint,
 } from './env'
@@ -251,6 +252,9 @@ const readSalesDocProducts = (payload) => {
 }
 
 export const loadSalesDocProducts = async (dealerId) => {
+  logFrontendApiConfig()
+  console.info(`[SalesDoc] Loading products from ${salesDocProductsEndpoint}`)
+
   const productsResponse = await postJson(salesDocProductsEndpoint, { dealerId })
   const productsPayload = await parseJsonResponse(
     productsResponse,

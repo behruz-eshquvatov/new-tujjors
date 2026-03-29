@@ -66,6 +66,7 @@ export const fetchDealerConfig = async (dealerId) => {
   }
 
   const baseUrl = normalizeBaseUrl(getDealerApiBaseUrl());
+  console.log(baseUrl);
   const endpoint = new URL(`api/dealers/info/${resolvedDealerId}/`, baseUrl);
   const response = await fetch(endpoint, {
     method: "GET",

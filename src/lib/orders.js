@@ -1,4 +1,8 @@
-import { dealerOrderEndpoint, directDealerOrderEndpoint } from './env'
+import {
+  dealerOrderEndpoint,
+  directDealerOrderEndpoint,
+  logFrontendApiConfig,
+} from './env'
 
 const compactText = (value) =>
   typeof value === 'string' ? value.trim() : ''
@@ -59,6 +63,9 @@ export const submitDealerOrder = async (payload) => {
     directDealerOrderEndpoint
       ? directDealerOrderEndpoint
       : dealerOrderEndpoint
+
+  logFrontendApiConfig()
+  console.info(`[Dealer Order] Sending order to ${endpoint}`)
 
   const response = await fetch(endpoint, {
     method: 'POST',
