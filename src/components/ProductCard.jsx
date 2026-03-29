@@ -43,6 +43,7 @@ export const ProductCardSkeleton = () => (
 
 const ProductCard = ({
   product,
+  priority = false,
   quantityInCart,
   isEditorOpen,
   editorQuantity,
@@ -67,8 +68,11 @@ const ProductCard = ({
           <img
             src={product.image}
             alt={product.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
+            className="h-full w-full object-contain"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={priority ? 'high' : 'auto'}
+            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm font-semibold text-app-text-soft">

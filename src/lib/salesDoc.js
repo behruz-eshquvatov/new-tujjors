@@ -61,6 +61,27 @@ const resolveProductPrice = (product) => {
   return 0
 }
 
+const resolveProductSortId = (product) => {
+  const sortCandidates = [
+    product?.sortId,
+    product?.sort_id,
+    product?.sortID,
+    product?.sort,
+    product?.position,
+    product?.order,
+  ]
+
+  for (const candidate of sortCandidates) {
+    const parsed = Number(candidate)
+
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return null
+}
+
 const parseJsonResponse = async (response, fallbackMessage) => {
   const payload = await response.json().catch(() => null)
 
@@ -168,9 +189,11 @@ const normalizeProduct = (product, categoryNameById, subCategoryNameById) => {
       compactText(product?.CS_id),
     barcode: compactText(product?.barCode),
     price: resolveProductPrice(product),
+    sortId: resolveProductSortId(product),
     image:
       resolveAbsoluteAssetUrl(product?.imageUrl || product?.thumbUrl) || heroImage,
     thumbImage: resolveAbsoluteAssetUrl(product?.thumbUrl),
+    fullImage: resolveAbsoluteAssetUrl(product?.imageUrl),
     stockLevel: Number(product?.volume) || 0,
     packQuantity: Number(product?.packQuantity) || 0,
     categoryId,

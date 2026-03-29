@@ -9,6 +9,7 @@ export const staticCategories = [
 export const staticProducts = [
   {
     id: 'phone-1',
+    sortId: 1,
     name: 'Nova X Pro 256GB',
     code: 'NXP-256',
     barcode: '4781234567001',
@@ -19,6 +20,7 @@ export const staticProducts = [
   },
   {
     id: 'phone-2',
+    sortId: 2,
     name: 'Nova Lite 128GB',
     code: 'NVL-128',
     barcode: '4781234567002',
@@ -29,6 +31,7 @@ export const staticProducts = [
   },
   {
     id: 'phone-3',
+    sortId: 3,
     name: 'Ultra Max 512GB',
     code: 'UMX-512',
     barcode: '4781234567003',
@@ -39,6 +42,7 @@ export const staticProducts = [
   },
   {
     id: 'acc-1',
+    sortId: 4,
     name: '65W Tezkor Zaryadlagich',
     code: 'CHG-65W',
     barcode: '4781234567004',
@@ -49,6 +53,7 @@ export const staticProducts = [
   },
   {
     id: 'acc-2',
+    sortId: 5,
     name: 'Magnit Powerbank 10000mAh',
     code: 'PB-10K',
     barcode: '4781234567005',
@@ -59,6 +64,7 @@ export const staticProducts = [
   },
   {
     id: 'acc-3',
+    sortId: 6,
     name: 'Premium Silikon G\'ilof',
     code: 'CASE-PRM',
     barcode: '4781234567006',
@@ -69,6 +75,7 @@ export const staticProducts = [
   },
   {
     id: 'audio-1',
+    sortId: 7,
     name: 'Air Beat Pro Quloqchin',
     code: 'ABP-TWS',
     barcode: '4781234567007',
@@ -79,6 +86,7 @@ export const staticProducts = [
   },
   {
     id: 'audio-2',
+    sortId: 8,
     name: 'Studio Bass Mini Kolonka',
     code: 'SBM-SPK',
     barcode: '4781234567008',
@@ -89,6 +97,7 @@ export const staticProducts = [
   },
   {
     id: 'audio-3',
+    sortId: 9,
     name: 'USB-C Simli Naushnik',
     code: 'USBC-EAR',
     barcode: '4781234567009',

@@ -1,6 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import CartDrawer from '../components/CartDrawer'
-import Pagination from '../components/Pagination'
 import ProductCard, { ProductCardSkeleton } from '../components/ProductCard'
 import StoreHeader, {
   ALL_CATEGORIES,
@@ -11,7 +17,9 @@ import { submitDealerOrder } from '../lib/orders'
 import { loadSalesDocProducts } from '../lib/salesDoc'
 import { staticCategories, staticProducts } from '../lib/staticStore'
 
-const ITEMS_PER_PAGE = 6
+const LOADING_SKELETON_COUNT = 6
+const INITIAL_VISIBLE_PRODUCTS = 12
+const VISIBLE_PRODUCTS_STEP = 9
 const EMPTY_FORM = {
   customerName: '',
   customerPhone: '',
@@ -46,20 +54,11 @@ const EmptyGrid = ({ searchTerm }) => (
 )
 
 const LoadingGrid = () => (
-  <>
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
-        <ProductCardSkeleton key={`loading-card-${index}`} />
-      ))}
-    </div>
-
-    <div className="mt-4 shrink-0">
-      <div
-        className="card-radius h-12 animate-pulse border border-app-border bg-app-surface-muted/80"
-        aria-hidden="true"
-      />
-    </div>
-  </>
+  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    {Array.from({ length: LOADING_SKELETON_COUNT }).map((_, index) => (
+      <ProductCardSkeleton key={`loading-card-${index}`} />
+    ))}
+  </div>
 )
 
 const resolveDealerAccess = () => {
@@ -91,9 +90,9 @@ const StorePage = () => {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
   const [selectedSubCategory, setSelectedSubCategory] = useState(ALL_SUBCATEGORIES)
-  const [page, setPage] = useState(1)
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
+  const [visibleProductCount, setVisibleProductCount] = useState(INITIAL_VISIBLE_PRODUCTS)
   const [quantityEditor, setQuantityEditor] = useState({
     productId: null,
     quantity: '1',
@@ -101,6 +100,7 @@ const StorePage = () => {
   const [customerForm, setCustomerForm] = useState(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [status, setStatus] = useState(null)
+  const loadMoreTriggerRef = useRef(null)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
 
@@ -165,11 +165,6 @@ const StorePage = () => {
       cancelled = true
     }
   }, [dealerAccess.hasAccess, fallbackCategories])
-
-  useEffect(() => {
-    setPage(1)
-  }, [deferredSearch, selectedCategory, selectedSubCategory])
-
   const selectedFilterLabel =
     selectedCategory === ALL_CATEGORIES
       ? "Barcha bo'limlar"
@@ -177,33 +172,87 @@ const StorePage = () => {
         ? `${selectedCategory} / ${selectedSubCategory}`
         : selectedCategory
 
-  const filteredProducts = products.filter((product) => {
-    if (selectedCategory !== ALL_CATEGORIES && product.category !== selectedCategory) {
-      return false
-    }
+  const filteredProducts = useMemo(() => {
+    const nextProducts = products.filter((product) => {
+      if (selectedCategory !== ALL_CATEGORIES && product.category !== selectedCategory) {
+        return false
+      }
 
-    if (
-      selectedSubCategory !== ALL_SUBCATEGORIES &&
-      product.subCategory !== selectedSubCategory
-    ) {
-      return false
-    }
+      if (
+        selectedSubCategory !== ALL_SUBCATEGORIES &&
+        product.subCategory !== selectedSubCategory
+      ) {
+        return false
+      }
 
-    if (!deferredSearch) {
-      return true
-    }
+      if (!deferredSearch) {
+        return true
+      }
 
-    const haystack = `${product.name} ${product.code} ${product.barcode || ''}`.toLowerCase()
-    return haystack.includes(deferredSearch)
-  })
+      const haystack = `${product.name} ${product.code} ${product.barcode || ''}`.toLowerCase()
+      return haystack.includes(deferredSearch)
+    })
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE))
-  const safePage = Math.min(page, totalPages)
-  const currentProducts = filteredProducts.slice(
-    (safePage - 1) * ITEMS_PER_PAGE,
-    safePage * ITEMS_PER_PAGE,
-  )
+    return nextProducts.sort((leftProduct, rightProduct) => {
+      const leftSortId =
+        Number.isFinite(leftProduct.sortId) ? leftProduct.sortId : Number.MAX_SAFE_INTEGER
+      const rightSortId =
+        Number.isFinite(rightProduct.sortId) ? rightProduct.sortId : Number.MAX_SAFE_INTEGER
+
+      if (leftSortId !== rightSortId) {
+        return leftSortId - rightSortId
+      }
+
+      return String(leftProduct.name || leftProduct.id).localeCompare(
+        String(rightProduct.name || rightProduct.id),
+      )
+    })
+  }, [deferredSearch, products, selectedCategory, selectedSubCategory])
+  const visibleProducts = filteredProducts.slice(0, visibleProductCount)
+  const hasMoreProducts = visibleProducts.length < filteredProducts.length
+
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const cartQuantityById = useMemo(
+    () => new Map(cart.map((item) => [item.id, item.quantity])),
+    [cart],
+  )
+
+  useEffect(() => {
+    setVisibleProductCount(INITIAL_VISIBLE_PRODUCTS)
+  }, [deferredSearch, selectedCategory, selectedSubCategory, products])
+
+  useEffect(() => {
+    const trigger = loadMoreTriggerRef.current
+
+    if (!trigger || isProductsLoading || !hasMoreProducts) {
+      return undefined
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries
+
+        if (!entry?.isIntersecting) {
+          return
+        }
+
+        startTransition(() => {
+          setVisibleProductCount((currentCount) =>
+            Math.min(filteredProducts.length, currentCount + VISIBLE_PRODUCTS_STEP),
+          )
+        })
+      },
+      {
+        rootMargin: '900px 0px',
+      },
+    )
+
+    observer.observe(trigger)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [filteredProducts.length, hasMoreProducts, isProductsLoading])
 
   const selectAllCategories = () => {
     setSelectedCategory(ALL_CATEGORIES)
@@ -391,11 +440,12 @@ const StorePage = () => {
         ) : (
           <>
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {currentProducts.map((product) => (
+              {visibleProducts.map((product, index) => (
                 <ProductCard
                   key={product.id}
                   product={product}
-                  quantityInCart={cart.find((item) => item.id === product.id)?.quantity || 0}
+                  priority={index < 6}
+                  quantityInCart={cartQuantityById.get(product.id) || 0}
                   isEditorOpen={quantityEditor.productId === product.id}
                   editorQuantity={
                     quantityEditor.productId === product.id ? quantityEditor.quantity : '1'
@@ -408,25 +458,16 @@ const StorePage = () => {
                   onRemoveFromCart={removeFromCart}
                 />
               ))}
-
-              {Array.from({ length: Math.max(0, ITEMS_PER_PAGE - currentProducts.length) }).map(
-                (_, index) => (
-                  <div
-                    key={`empty-${index}`}
-                    className="card-radius hidden h-[24rem] border border-dashed border-app-border bg-app-surface/50 lg:block"
-                    aria-hidden="true"
-                  />
-                ),
-              )}
             </div>
 
-            <div className="mt-4 shrink-0">
-              <Pagination
-                currentPage={safePage}
-                totalPages={totalPages}
-                onPageChange={setPage}
-              />
-            </div>
+            {hasMoreProducts && (
+              <div
+                ref={loadMoreTriggerRef}
+                className="flex min-h-24 items-center justify-center py-6 text-sm font-medium text-app-text-soft"
+              >
+                Ko&apos;proq mahsulotlar yuklanmoqda...
+              </div>
+            )}
           </>
         )}
       </section>
