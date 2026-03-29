@@ -6,7 +6,6 @@ import StoreHeader, {
   ALL_CATEGORIES,
   ALL_SUBCATEGORIES,
 } from '../components/StoreHeader.jsx'
-import { dealerSiteEndpoint } from '../lib/env'
 import { formatCount } from '../lib/format'
 import { submitDealerOrder } from '../lib/orders'
 import { loadSalesDocProducts } from '../lib/salesDoc'
@@ -67,7 +66,7 @@ const resolveDealerAccess = () => {
   if (typeof window === 'undefined') {
     return {
       hasAccess: false,
-      dealerLink: dealerSiteEndpoint || '',
+      dealerId: '',
     }
   }
 
@@ -79,7 +78,7 @@ const resolveDealerAccess = () => {
 
   return {
     hasAccess: Boolean(dealerId),
-    dealerLink: dealerSiteEndpoint || dealerId,
+    dealerId,
   }
 }
 
@@ -127,7 +126,7 @@ const StorePage = () => {
           text: "SalesDoc mahsulotlari yuklanmoqda...",
         })
 
-        const salesDocData = await loadSalesDocProducts()
+        const salesDocData = await loadSalesDocProducts(dealerAccess.dealerId)
 
         if (cancelled) {
           return
@@ -306,10 +305,11 @@ const StorePage = () => {
       setIsSubmitting(true)
 
       const payload = {
+        dealerId: dealerAccess.dealerId,
         customer: customerForm,
         cart,
         createdAt: new Date().toISOString(),
-        link: dealerAccess.dealerLink,
+        link: dealerAccess.dealerId,
       }
 
       const response = await submitDealerOrder(payload)
@@ -328,10 +328,11 @@ const StorePage = () => {
       })
     } catch (error) {
       const payload = {
+        dealerId: dealerAccess.dealerId,
         customer: customerForm,
         cart,
         createdAt: new Date().toISOString(),
-        link: dealerAccess.dealerLink,
+        link: dealerAccess.dealerId,
       }
 
       window.localStorage.setItem('new-tujjors-last-order-failed', JSON.stringify(payload))

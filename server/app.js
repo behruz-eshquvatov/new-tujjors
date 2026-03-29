@@ -2,6 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 
+import { fetchDealerConfig, resolveDealerId } from "./dealerApi.js";
 import { sendDealerOrder } from "./dealerOrder.js";
 import { fetchSalesDocCatalog, getSalesDocAuth } from "./salesDoc.js";
 
@@ -16,9 +17,10 @@ app.get("/health", (_request, response) => {
   response.json({ ok: true });
 });
 
-app.post("/api/salesdoc/login", async (_request, response) => {
+app.post("/api/salesdoc/login", async (request, response) => {
   try {
-    const loginData = await getSalesDocAuth();
+    const dealerConfig = await fetchDealerConfig(resolveDealerId(request.body || {}));
+    const loginData = await getSalesDocAuth(dealerConfig);
 
     response.json({
       status: true,
@@ -33,10 +35,10 @@ app.post("/api/salesdoc/login", async (_request, response) => {
   }
 });
 
-app.post("/api/salesdoc/products", async (_request, response) => {
+app.post("/api/salesdoc/products", async (request, response) => {
   try {
-    const data = await fetchSalesDocCatalog();
-    console.log(data);
+    const dealerConfig = await fetchDealerConfig(resolveDealerId(request.body || {}));
+    const data = await fetchSalesDocCatalog(dealerConfig);
 
     response.json(data);
   } catch (error) {

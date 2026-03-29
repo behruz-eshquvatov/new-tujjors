@@ -70,12 +70,13 @@ const parseJsonResponse = async (response, fallbackMessage) => {
   return payload
 }
 
-const postJson = (url) =>
+const postJson = (url, payload = {}) =>
   fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify(payload),
   })
 
 const resolveEntityId = (value) => {
@@ -249,8 +250,8 @@ const readSalesDocProducts = (payload) => {
   return []
 }
 
-export const loadSalesDocProducts = async () => {
-  const productsResponse = await postJson(salesDocProductsEndpoint)
+export const loadSalesDocProducts = async (dealerId) => {
+  const productsResponse = await postJson(salesDocProductsEndpoint, { dealerId })
   const productsPayload = await parseJsonResponse(
     productsResponse,
     "SalesDoc katalogini yuklab bo'lmadi.",

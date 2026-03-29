@@ -5,7 +5,6 @@ const readEnv = (key, fallback = '') => {
 
 const apiBaseUrl = readEnv('VITE_API_BASE_URL', '')
 const salesDocAssetBaseUrl = readEnv('VITE_SALESDOC_ASSET_BASE_URL', '')
-const dealerSiteLink = readEnv('VITE_DEALER_SITE_LINK', '')
 const directDealerOrderUrl = readEnv('VITE_DEALER_ORDER_DIRECT_URL', '')
 
 export const appConfig = {
@@ -19,5 +18,4 @@ export const salesDocLoginEndpoint = `${apiBaseUrl}/api/salesdoc/login`
 export const salesDocProductsEndpoint = `${apiBaseUrl}/api/salesdoc/products`
 export const dealerOrderEndpoint = `${apiBaseUrl}/api/dealers/send-order`
 export const salesDocAssetBaseEndpoint = salesDocAssetBaseUrl
-export const dealerSiteEndpoint = dealerSiteLink
 export const directDealerOrderEndpoint = directDealerOrderUrl

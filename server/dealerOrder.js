@@ -1,6 +1,8 @@
+import { defaultDealerApiBaseUrl } from "./dealerApi.js";
+
 const defaultDealerOrderEndpoint =
   process.env.DEALER_ORDER_ENDPOINT ||
-  "http://45.94.209.80:8005/api/dealers/send-order/";
+  `${defaultDealerApiBaseUrl.replace(/\/$/, "")}/api/dealers/send-order/`;
 
 const compactText = (value) =>
   typeof value === "string" ? value.trim() : "";

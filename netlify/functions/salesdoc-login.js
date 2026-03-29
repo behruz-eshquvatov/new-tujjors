@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 
+import { fetchDealerConfig, resolveDealerId } from "../../server/dealerApi.js";
 import { getSalesDocAuth } from "../../server/salesDoc.js";
 
 dotenv.config({ quiet: true });
@@ -21,7 +22,9 @@ export const handler = async (event) => {
   }
 
   try {
-    const loginData = await getSalesDocAuth();
+    const payload = event.body ? JSON.parse(event.body) : {};
+    const dealerConfig = await fetchDealerConfig(resolveDealerId(payload));
+    const loginData = await getSalesDocAuth(dealerConfig);
 
     return {
       statusCode: 200,

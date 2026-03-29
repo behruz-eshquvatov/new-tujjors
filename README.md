@@ -24,13 +24,9 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 - `VITE_APP_CURRENCY`
 - `VITE_API_BASE_URL`
 - `VITE_SALESDOC_ASSET_BASE_URL`
-- `VITE_DEALER_SITE_LINK`
 - `VITE_DEALER_ORDER_DIRECT_URL`
-- `SALESDOC_BASE_URL`
+- `DEALER_API_BASE_URL`
 - `DEALER_ORDER_ENDPOINT`
-- `SALESDOC_PRICE_TYPE_ID`
-- `SALESDOC_LOGIN`
-- `SALESDOC_PASSWORD`
 
 ## Build
 
@@ -40,9 +36,9 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 ## Netlify
 
 - Netlify `dist` bilan birga `netlify/functions` papkasidagi serverless endpointlarni ham deploy qiladi.
-- Netlify environment variables ichida kamida `SALESDOC_BASE_URL`, `SALESDOC_PRICE_TYPE_ID`, `SALESDOC_LOGIN`, `SALESDOC_PASSWORD`, `VITE_SALESDOC_ASSET_BASE_URL` ni kiriting.
+- Frontend dealer ID ni URL path dan oladi. Masalan `site/tvMxtrl0zP` bo'lsa, `tvMxtrl0zP` dealer ID sifatida ishlatiladi.
+- Server SalesDoc login, password, url va `price_type` ni `DEALER_API_BASE_URL/api/dealers/info/{dealerId}/` endpointidan oladi, shuning uchun ularni `.env` ichida saqlash shart emas.
+- Dealer info va order API lokalda ishlasa, `DEALER_API_BASE_URL=http://localhost:8005` ni kiriting.
 - Dealer buyurtma servisi ishlatilsa, `DEALER_ORDER_ENDPOINT` ni ham kiriting.
-- Agar dealer backend `link` orqali dealer topayotgan bo'lsa, `VITE_DEALER_SITE_LINK` ga backendda ro'yxatdan o'tgan aniq sayt URL manzilini kiriting.
-- Frontend dealer ID ni URL path dan oladi. Masalan `site/tvMxtrl0zP` bo'lsa, `tvMxtrl0zP` dealer link sifatida ishlatiladi.
 - Agar lokal `http://localhost` muhitida browserdan to'g'ridan-to'g'ri dealer endpointga urmoqchi bo'lsangiz, `VITE_DEALER_ORDER_DIRECT_URL` dan foydalaning. HTTPS saytda browser mixed-content sababli bundan foydalana olmaydi.
 - `VITE_API_BASE_URL` ni Netlify'da bo'sh qoldiring yoki umuman bermang, shunda frontend shu domen ichidagi `/api/...` endpointlarga murojaat qiladi.

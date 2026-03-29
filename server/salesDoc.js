@@ -1,34 +1,56 @@
-const salesDocBaseUrl =
-  process.env.SALESDOC_BASE_URL || "https://villobuhara.salesdoc.io/api/v2/";
-
 const authTtlMs = Number(process.env.SALESDOC_AUTH_TTL_MS || 4 * 60 * 1000);
-const defaultPriceTypeId =
-  String(process.env.SALESDOC_PRICE_TYPE_ID || "d0_2").trim() || "d0_2";
+const defaultPriceTypeId = "d0_2";
 
 const defaultFilial = {
   filial_id: Number(process.env.SALESDOC_FILIAL_ID || 0),
 };
 
-let authCache = {
-  token: null,
-  expiresAt: 0,
-  pending: null,
-};
+const authCacheByKey = new Map();
 
-const getSalesDocCredentials = () => {
-  const login = process.env.SALESDOC_LOGIN;
-  const password = process.env.SALESDOC_PASSWORD;
+const compactText = (value) =>
+  typeof value === "string" ? value.trim() : "";
 
-  if (!login || !password) {
-    throw new Error(
-      "Set SALESDOC_LOGIN and SALESDOC_PASSWORD in your environment before starting the server.",
-    );
+const normalizeSalesDocBaseUrl = (value) => {
+  const baseUrl = compactText(value);
+
+  if (!baseUrl) {
+    throw new Error("SalesDoc base URL is required.");
   }
 
-  return { login, password };
+  return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
 };
 
-const requestSalesDoc = async (payload) => {
+const getSalesDocCredentials = (config) => {
+  const login = compactText(config?.login);
+  const password = compactText(config?.password);
+  const salesDocBaseUrl = normalizeSalesDocBaseUrl(config?.salesDocBaseUrl);
+
+  if (!login || !password) {
+    throw new Error("SalesDoc login and password are required.");
+  }
+
+  return { login, password, salesDocBaseUrl };
+};
+
+const buildAuthCacheKey = (config) => {
+  const { login, password, salesDocBaseUrl } = getSalesDocCredentials(config);
+
+  return [salesDocBaseUrl, login, password].join("|");
+};
+
+const getAuthCacheEntry = (cacheKey) =>
+  authCacheByKey.get(cacheKey) || {
+    token: null,
+    expiresAt: 0,
+    pending: null,
+  };
+
+const setAuthCacheEntry = (cacheKey, entry) => {
+  authCacheByKey.set(cacheKey, entry);
+};
+
+const requestSalesDoc = async (config, payload) => {
+  const { salesDocBaseUrl } = getSalesDocCredentials(config);
   const response = await fetch(salesDocBaseUrl, {
     method: "POST",
     headers: {
@@ -47,12 +69,10 @@ const requestSalesDoc = async (payload) => {
   return { response, data };
 };
 
-const loginToSalesDoc = async () => {
-  console.log("Logging in to SalesDoc...");
+const loginToSalesDoc = async (config) => {
+  const { login, password } = getSalesDocCredentials(config);
 
-  const { login, password } = getSalesDocCredentials();
-
-  const { response, data } = await requestSalesDoc({
+  const { response, data } = await requestSalesDoc(config, {
     method: "login",
     auth: { login, password },
   });
@@ -69,41 +89,46 @@ const loginToSalesDoc = async () => {
   return data.result;
 };
 
-const clearSalesDocAuth = () => {
-  authCache = {
-    token: null,
-    expiresAt: 0,
-    pending: null,
-  };
+const clearSalesDocAuth = (config) => {
+  authCacheByKey.delete(buildAuthCacheKey(config));
 };
 
-export const getSalesDocAuth = async ({ forceRefresh = false } = {}) => {
+export const getSalesDocAuth = async (
+  config,
+  { forceRefresh = false } = {},
+) => {
   const now = Date.now();
+  const cacheKey = buildAuthCacheKey(config);
+  const cachedEntry = getAuthCacheEntry(cacheKey);
 
-  if (!forceRefresh && authCache.token && authCache.expiresAt > now) {
-    return authCache.token;
+  if (!forceRefresh && cachedEntry.token && cachedEntry.expiresAt > now) {
+    return cachedEntry.token;
   }
 
-  if (authCache.pending) {
-    return authCache.pending;
+  if (cachedEntry.pending) {
+    return cachedEntry.pending;
   }
 
-  const loginPromise = loginToSalesDoc()
+  const loginPromise = loginToSalesDoc(config)
     .then((token) => {
-      authCache = {
+      setAuthCacheEntry(cacheKey, {
         token,
         expiresAt: Date.now() + authTtlMs,
         pending: null,
-      };
+      });
 
       return token;
     })
     .catch((error) => {
-      clearSalesDocAuth();
+      clearSalesDocAuth(config);
       throw error;
     });
 
-  authCache.pending = loginPromise;
+  setAuthCacheEntry(cacheKey, {
+    ...cachedEntry,
+    pending: loginPromise,
+  });
+
   return loginPromise;
 };
 
@@ -114,21 +139,24 @@ const isInvalidTokenResponse = (payload) =>
     .toLowerCase()
     .includes("invalid token");
 
-const requestSalesDocWithAuth = async (payload, { allowRetry = true } = {}) => {
-  const auth = await getSalesDocAuth();
+const requestSalesDocWithAuth = async (
+  config,
+  payload,
+  { allowRetry = true } = {},
+) => {
+  const auth = await getSalesDocAuth(config);
 
-  const result = await requestSalesDoc({
+  const result = await requestSalesDoc(config, {
     ...payload,
     auth,
   });
 
   if (allowRetry && isInvalidTokenResponse(result.data)) {
-    console.log("SalesDoc token expired or invalid, refreshing auth...");
-    clearSalesDocAuth();
+    clearSalesDocAuth(config);
 
-    const freshAuth = await getSalesDocAuth({ forceRefresh: true });
+    const freshAuth = await getSalesDocAuth(config, { forceRefresh: true });
 
-    return requestSalesDoc({
+    return requestSalesDoc(config, {
       ...payload,
       auth: freshAuth,
     });
@@ -142,9 +170,6 @@ const buildSalesDocPayload = (method, params) => ({
   method,
   params,
 });
-
-const compactText = (value) =>
-  typeof value === "string" ? value.trim() : "";
 
 const buildSalesDocEntityRef = (value) => {
   const id = compactText(String(value || ""));
@@ -204,6 +229,24 @@ const resolveSalesDocEntityId = (value) => {
   return compactText(value?.CS_id || value?.SD_id || value?.code_1C || value?.id);
 };
 
+const resolveAbsoluteAssetUrl = (baseUrl, assetPath) => {
+  const normalizedPath = compactText(assetPath);
+
+  if (!normalizedPath) {
+    return normalizedPath;
+  }
+
+  if (/^https?:\/\//i.test(normalizedPath)) {
+    return normalizedPath;
+  }
+
+  try {
+    return new URL(normalizedPath, baseUrl).toString();
+  } catch {
+    return normalizedPath;
+  }
+};
+
 const buildPriceMap = (prices) =>
   prices.reduce((map, item) => {
     const key = resolveSalesDocEntityId(item?.product);
@@ -216,22 +259,27 @@ const buildPriceMap = (prices) =>
     return map;
   }, new Map());
 
-export const fetchSalesDocCatalog = async () => {
+export const fetchSalesDocCatalog = async (config) => {
+  const { salesDocBaseUrl } = getSalesDocCredentials(config);
+  const priceTypeId = compactText(config?.priceTypeId) || defaultPriceTypeId;
   const [categoriesResult, subCategoriesResult, productsResult, pricesResult] =
     await Promise.all([
       requestSalesDocWithAuth(
+        config,
         buildSalesDocPayload("getProductCategory", {
           page: 1,
           limit: 100,
         }),
       ),
       requestSalesDocWithAuth(
+        config,
         buildSalesDocPayload("getProductSubCategory", {
           page: 1,
           limit: 100,
         }),
       ),
       requestSalesDocWithAuth(
+        config,
         buildSalesDocPayload("getProduct", {
           page: 1,
           limit: 100,
@@ -245,8 +293,9 @@ export const fetchSalesDocCatalog = async () => {
         }),
       ),
       requestSalesDocWithAuth(
+        config,
         buildSalesDocPayload("getPrice", {
-          priceType: buildSalesDocEntityRef(defaultPriceTypeId),
+          priceType: buildSalesDocEntityRef(priceTypeId),
         }),
       ),
     ]);
@@ -267,9 +316,11 @@ export const fetchSalesDocCatalog = async () => {
 
     return {
       ...product,
+      imageUrl: resolveAbsoluteAssetUrl(salesDocBaseUrl, product?.imageUrl),
+      thumbUrl: resolveAbsoluteAssetUrl(salesDocBaseUrl, product?.thumbUrl),
       price: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
       priceValue: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
-      price_type: defaultPriceTypeId,
+      price_type: priceTypeId,
     };
   });
 
