@@ -82,6 +82,20 @@ const resolveProductSortId = (product) => {
   return null
 }
 
+const resolveProductStockLevel = (product) => {
+  const stockCandidates = [product?.stockLevel, product?.quantity, product?.volume]
+
+  for (const candidate of stockCandidates) {
+    const parsed = Number(candidate)
+
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return 0
+}
+
 const parseJsonResponse = async (response, fallbackMessage) => {
   const payload = await response.json().catch(() => null)
 
@@ -124,11 +138,20 @@ const resolveEntityName = (value) => {
   )
 }
 
+const resolveEntityActive = (value) => {
+  if (!value || typeof value === 'string' || typeof value === 'number') {
+    return ''
+  }
+
+  return compactText(value?.active).toUpperCase()
+}
+
 const normalizeCategory = (category) => {
   const name = resolveEntityName(category)
   const id = resolveEntityId(category) || name
+  const active = resolveEntityActive(category)
 
-  return id && name ? { id, name } : null
+  return id && name ? { id, name, active } : null
 }
 
 const normalizeSubCategory = (subCategory, categoryNameById) => {
@@ -194,7 +217,7 @@ const normalizeProduct = (product, categoryNameById, subCategoryNameById) => {
       resolveAbsoluteAssetUrl(product?.imageUrl || product?.thumbUrl) || heroImage,
     thumbImage: resolveAbsoluteAssetUrl(product?.thumbUrl),
     fullImage: resolveAbsoluteAssetUrl(product?.imageUrl),
-    stockLevel: Number(product?.volume) || 0,
+    stockLevel: resolveProductStockLevel(product),
     packQuantity: Number(product?.packQuantity) || 0,
     categoryId,
     subCategoryId,
@@ -292,6 +315,13 @@ export const loadSalesDocProducts = async (dealerId) => {
     : []
   const products = readSalesDocProducts(productsPayload)
   const normalizedCategories = categories.map(normalizeCategory).filter(Boolean)
+  const hasCategoryActiveFlags = normalizedCategories.some((item) => item.active)
+  const activeCategories = hasCategoryActiveFlags
+    ? normalizedCategories.filter((item) => item.active === 'Y')
+    : normalizedCategories
+  const allowedCategoryKeys = new Set(
+    activeCategories.flatMap((item) => [item.id, item.name].filter(Boolean)),
+  )
   const categoryNameById = new Map(normalizedCategories.map((item) => [item.id, item.name]))
   const normalizedSubCategories = subCategories
     .map((item) => normalizeSubCategory(item, categoryNameById))
@@ -301,13 +331,15 @@ export const loadSalesDocProducts = async (dealerId) => {
   )
   const normalizedProducts = products
     .map((product) => normalizeProduct(product, categoryNameById, subCategoryNameById))
-    .filter(Boolean)
-  const derivedCategories = buildCategoriesFromProducts(normalizedProducts)
+    .filter((product) => product && product.stockLevel > 0)
+  const derivedCategories = buildCategoriesFromProducts(normalizedProducts).filter((item) =>
+    hasCategoryActiveFlags ? allowedCategoryKeys.has(item.id) || allowedCategoryKeys.has(item.name) : true,
+  )
   const derivedSubCategories = buildSubCategoriesFromProducts(normalizedProducts)
 
   return {
     categories: buildUniqueCollection(
-      [...normalizedCategories, ...derivedCategories],
+      [...activeCategories, ...derivedCategories],
       (item) => item.id || item.name,
     ),
     subCategories: buildUniqueCollection(

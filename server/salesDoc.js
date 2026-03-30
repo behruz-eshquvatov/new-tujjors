@@ -1,4 +1,6 @@
 const defaultPriceTypeId = "d0_2";
+const defaultPageLimit = 100;
+const defaultMaxPageCount = 100;
 
 const authCacheByKey = new Map();
 
@@ -223,6 +225,43 @@ const unwrapSalesDocArrayResult = (result, fallbackMessage) => {
   return Array.isArray(result?.data?.result) ? result.data.result : [];
 };
 
+const fetchPaginatedSalesDocCollection = async (
+  config,
+  method,
+  key,
+  baseParams,
+  fallbackMessage,
+  {
+    limit = defaultPageLimit,
+    maxPages = defaultMaxPageCount,
+  } = {},
+) => {
+  const items = [];
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const result = await requestSalesDocWithAuth(
+      config,
+      buildSalesDocPayload(method, {
+        ...baseParams,
+        page,
+        limit,
+      }),
+    );
+    const pageItems = unwrapSalesDocCollection(result, key, fallbackMessage);
+
+    items.push(...pageItems);
+
+    if (pageItems.length < limit) {
+      break;
+    }
+  }
+
+  return items;
+};
+
+const isSalesDocEntityActive = (value) =>
+  compactText(value?.active).toUpperCase() !== "N";
+
 const resolveSalesDocEntityId = (value) => {
   if (typeof value === "string" || typeof value === "number") {
     return compactText(String(value));
@@ -261,30 +300,56 @@ const buildPriceMap = (prices) =>
     return map;
   }, new Map());
 
+const buildStockMap = (warehouses) =>
+  warehouses.reduce((map, warehouse) => {
+    if (!isSalesDocEntityActive(warehouse)) {
+      return map;
+    }
+
+    const products = Array.isArray(warehouse?.products) ? warehouse.products : [];
+
+    for (const product of products) {
+      if (!isSalesDocEntityActive(product)) {
+        continue;
+      }
+
+      const key = resolveSalesDocEntityId(product);
+      const quantity = Number(product?.quantity);
+
+      if (!key || !Number.isFinite(quantity)) {
+        continue;
+      }
+
+      map.set(key, (map.get(key) || 0) + quantity);
+    }
+
+    return map;
+  }, new Map());
+
 export const fetchSalesDocCatalog = async (config) => {
   const { salesDocBaseUrl } = getSalesDocCredentials(config);
   const priceTypeId = compactText(config?.priceTypeId) || defaultPriceTypeId;
-  const [categoriesResult, subCategoriesResult, productsResult, pricesResult] =
+  const [categories, subCategories, products, pricesResult, warehouses] =
     await Promise.all([
-      requestSalesDocWithAuth(
+      fetchPaginatedSalesDocCollection(
         config,
-        buildSalesDocPayload("getProductCategory", {
-          page: 1,
-          limit: 100,
-        }),
+        "getProductCategory",
+        "productCategory",
+        {},
+        "Failed to fetch SalesDoc product categories.",
       ),
-      requestSalesDocWithAuth(
+      fetchPaginatedSalesDocCollection(
         config,
-        buildSalesDocPayload("getProductSubCategory", {
-          page: 1,
-          limit: 100,
-        }),
+        "getProductSubCategory",
+        "productSubCategory",
+        {},
+        "Failed to fetch SalesDoc product subcategories.",
       ),
-      requestSalesDocWithAuth(
+      fetchPaginatedSalesDocCollection(
         config,
-        buildSalesDocPayload("getProduct", {
-          page: 1,
-          limit: 100,
+        "getProduct",
+        "product",
+        {
           filter: {
             trade: {
               CS_id: 1,
@@ -292,7 +357,8 @@ export const fetchSalesDocCatalog = async (config) => {
               code_1C: "",
             },
           },
-        }),
+        },
+        "Failed to fetch SalesDoc products.",
       ),
       requestSalesDocWithAuth(
         config,
@@ -300,21 +366,29 @@ export const fetchSalesDocCatalog = async (config) => {
           priceType: buildSalesDocEntityRef(priceTypeId),
         }),
       ),
+      fetchPaginatedSalesDocCollection(
+        config,
+        "getStock",
+        "warehouse",
+        {
+          filter: {},
+        },
+        "Failed to fetch SalesDoc stock levels.",
+      ),
     ]);
-
-  const products = unwrapSalesDocCollection(
-    productsResult,
-    "product",
-    "Failed to fetch SalesDoc products.",
-  );
   const prices = unwrapSalesDocArrayResult(
     pricesResult,
     "Failed to fetch SalesDoc product prices.",
   );
   const priceByProductId = buildPriceMap(prices);
+  const stockByProductId = buildStockMap(warehouses);
   const productsWithPrices = products.map((product) => {
     const productId = resolveSalesDocEntityId(product);
     const resolvedPrice = priceByProductId.get(productId);
+    const hasStockLevel = stockByProductId.has(productId);
+    const resolvedStockLevel = hasStockLevel
+      ? stockByProductId.get(productId)
+      : Number(product?.volume) || 0;
 
     return {
       ...product,
@@ -322,6 +396,7 @@ export const fetchSalesDocCatalog = async (config) => {
       thumbUrl: resolveAbsoluteAssetUrl(salesDocBaseUrl, product?.thumbUrl),
       price: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
       priceValue: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
+      stockLevel: resolvedStockLevel,
       price_type: priceTypeId,
     };
   });
@@ -329,16 +404,8 @@ export const fetchSalesDocCatalog = async (config) => {
   return {
     status: true,
     result: {
-      productCategory: unwrapSalesDocCollection(
-        categoriesResult,
-        "productCategory",
-        "Failed to fetch SalesDoc product categories.",
-      ),
-      productSubCategory: unwrapSalesDocCollection(
-        subCategoriesResult,
-        "productSubCategory",
-        "Failed to fetch SalesDoc product subcategories.",
-      ),
+      productCategory: categories,
+      productSubCategory: subCategories,
       product: productsWithPrices,
     },
   };

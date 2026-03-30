@@ -23,6 +23,12 @@ const FALLBACK_CATEGORY_TREE = [
 const resolveCategoryName = (item) =>
   item?.name || item?.categoryName || item?.productCategoryName || item?.title || ''
 
+const isVisibleCategory = (category) => {
+  const active = typeof category?.active === 'string' ? category.active.trim().toUpperCase() : ''
+
+  return !active || active === 'Y'
+}
+
 const buildCategoryList = (categories, products = []) => {
   const productCounts = products.reduce((accumulator, product) => {
     const categoryName = product?.category
@@ -37,6 +43,7 @@ const buildCategoryList = (categories, products = []) => {
   }, {})
 
   const mappedCategories = categories
+    .filter(isVisibleCategory)
     .map((category) => {
       const categoryName = resolveCategoryName(category)
 
