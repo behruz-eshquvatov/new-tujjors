@@ -260,7 +260,7 @@ const fetchPaginatedSalesDocCollection = async (
 };
 
 const isSalesDocEntityActive = (value) =>
-  compactText(value?.active).toUpperCase() !== "N";
+  compactText(value?.active).toUpperCase() === "Y";
 
 const resolveSalesDocEntityId = (value) => {
   if (typeof value === "string" || typeof value === "number") {
@@ -306,21 +306,23 @@ const buildStockMap = (warehouses) =>
       return map;
     }
 
-    const products = Array.isArray(warehouse?.products) ? warehouse.products : [];
+    const warehouseProducts = Array.isArray(warehouse?.products)
+      ? warehouse.products
+      : [];
 
-    for (const product of products) {
-      if (!isSalesDocEntityActive(product)) {
+    for (const warehouseProduct of warehouseProducts) {
+      if (!isSalesDocEntityActive(warehouseProduct)) {
         continue;
       }
 
-      const key = resolveSalesDocEntityId(product);
-      const quantity = Number(product?.quantity);
+      const productId = resolveSalesDocEntityId(warehouseProduct);
+      const quantity = Number(warehouseProduct?.quantity);
 
-      if (!key || !Number.isFinite(quantity)) {
+      if (!productId || !Number.isFinite(quantity)) {
         continue;
       }
 
-      map.set(key, (map.get(key) || 0) + quantity);
+      map.set(productId, (map.get(productId) || 0) + quantity);
     }
 
     return map;
@@ -382,13 +384,11 @@ export const fetchSalesDocCatalog = async (config) => {
   );
   const priceByProductId = buildPriceMap(prices);
   const stockByProductId = buildStockMap(warehouses);
-  const productsWithPrices = products.map((product) => {
+  const activeProducts = products.filter(isSalesDocEntityActive);
+  const productsWithPrices = activeProducts.map((product) => {
     const productId = resolveSalesDocEntityId(product);
     const resolvedPrice = priceByProductId.get(productId);
-    const hasStockLevel = stockByProductId.has(productId);
-    const resolvedStockLevel = hasStockLevel
-      ? stockByProductId.get(productId)
-      : Number(product?.volume) || 0;
+    const stockLevel = stockByProductId.get(productId) || 0;
 
     return {
       ...product,
@@ -396,10 +396,10 @@ export const fetchSalesDocCatalog = async (config) => {
       thumbUrl: resolveAbsoluteAssetUrl(salesDocBaseUrl, product?.thumbUrl),
       price: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
       priceValue: Number.isFinite(resolvedPrice) ? resolvedPrice : 0,
-      stockLevel: resolvedStockLevel,
+      stockLevel,
       price_type: priceTypeId,
     };
-  });
+  }).filter((product) => product.stockLevel > 0);
 
   return {
     status: true,
