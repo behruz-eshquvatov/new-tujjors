@@ -38,8 +38,42 @@ Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali
 - `npm install`
 - `npm run build`
 - `pm2 start ecosystem.config.cjs`
-- Nginx `savdo.tujjors.uz` ni shu Node process portiga proxy qiladi.
-- Production server `dist` frontend fayllarini va `/api/...` endpointlarni bitta origin orqali serve qiladi.
+- PM2 Node API serverni `http://127.0.0.1:3000` da ishga tushiradi.
+- Nginx frontend uchun `dist` papkasini serve qiladi.
+- Nginx faqat `/api/...` va `/health` requestlarini `http://127.0.0.1:3000` ga proxy qiladi.
+
+Nginx example:
+
+```nginx
+server {
+    server_name savdo.tujjors.uz;
+
+    root /path/to/new-tujjors/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
 
 ## Netlify
 
