@@ -10,6 +10,8 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 
 `npm run dev` endi Vite client va Express serverni birga ishga tushiradi, backend fayllari o'zgarsa server avtomatik restart bo'ladi.
 
+Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali `http://127.0.0.1:3000` dagi Express serverga o'tadi. Agar Network tabda `/api/...` 502 ko'rsangiz, Express server ishlamayapti; terminalda `npm run dev` ni qayta ishga tushiring yoki alohida `npm run server` ishlatib `http://localhost:3000/health` ni tekshiring.
+
 ## API
 
 - Frontend mahsulotlarni bitta endpoint orqali yuklaydi:
@@ -35,7 +37,7 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 
 - `npm install`
 - `npm run build`
-- `PORT=5173 npm start`
+- `pm2 start ecosystem.config.cjs`
 - Nginx `savdo.tujjors.uz` ni shu Node process portiga proxy qiladi.
 - Production server `dist` frontend fayllarini va `/api/...` endpointlarni bitta origin orqali serve qiladi.
 

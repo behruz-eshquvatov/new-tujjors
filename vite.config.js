@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/health': 'http://localhost:3000',
+      '/api': process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:3000',
+      '/health': process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:3000',
     },
   },
 })
