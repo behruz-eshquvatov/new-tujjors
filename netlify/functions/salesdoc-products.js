@@ -33,7 +33,7 @@ export const handler = async (event) => {
     };
   } catch (error) {
     return {
-      statusCode: 500,
+      statusCode: error?.statusCode || 500,
       headers: jsonHeaders,
       body: JSON.stringify({
         status: false,

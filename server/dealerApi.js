@@ -14,7 +14,7 @@ const normalizeBaseUrl = (value) => {
 };
 
 export const getDealerApiBaseUrl = () =>
-  compactText(process.env.DEALER_API_BASE_URL) || "http://localhost:8005";
+  compactText(process.env.DEALER_API_BASE_URL) || "https://tujjors.uz";
 
 const readJsonResponse = async (response) => {
   const text = await response.text();
@@ -28,6 +28,32 @@ const readJsonResponse = async (response) => {
   } catch {
     return { raw: text };
   }
+};
+
+const stripHtml = (value) =>
+  compactText(value)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const readHtmlErrorMessage = (html) => {
+  const text = stripHtml(html);
+
+  if (text.includes("Server Error (500)")) {
+    return "tujjors.uz dealer info API returned Server Error (500).";
+  }
+
+  if (/продавец не найден/i.test(text)) {
+    return "Dealer not found or expired in tujjors.uz.";
+  }
+
+  return text ? text.slice(0, 300) : "";
 };
 
 const readErrorMessage = (payload, fallbackMessage) => {
@@ -44,7 +70,7 @@ const readErrorMessage = (payload, fallbackMessage) => {
   }
 
   if (typeof payload?.raw === "string" && payload.raw.trim()) {
-    return payload.raw.trim();
+    return readHtmlErrorMessage(payload.raw) || fallbackMessage;
   }
 
   return fallbackMessage;
@@ -66,7 +92,6 @@ export const fetchDealerConfig = async (dealerId) => {
   }
 
   const baseUrl = normalizeBaseUrl(getDealerApiBaseUrl());
-  console.log(baseUrl);
   const endpoint = new URL(`api/dealers/info/${resolvedDealerId}/`, baseUrl);
   const response = await fetch(endpoint, {
     method: "GET",
@@ -77,12 +102,16 @@ export const fetchDealerConfig = async (dealerId) => {
   const data = await readJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       readErrorMessage(
         data,
         `Dealer info API rejected the request with status ${response.status}.`,
       ),
     );
+
+    error.statusCode = response.status;
+    error.responsePayload = data;
+    throw error;
   }
 
   const salesDocBaseUrl = compactText(data?.url);

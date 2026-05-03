@@ -164,7 +164,5 @@ export const sendDealerOrder = async (payload) => {
   return {
     status: true,
     result: data,
-    forwardedTo: dealerOrderEndpoint,
-    payload: dealerPayload,
   };
 };

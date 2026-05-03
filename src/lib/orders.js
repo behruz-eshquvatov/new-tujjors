@@ -1,6 +1,5 @@
 import {
   dealerOrderEndpoint,
-  directDealerOrderEndpoint,
   logFrontendApiConfig,
 } from './env'
 
@@ -57,12 +56,7 @@ const parseJsonResponse = async (response, fallbackMessage) => {
 
 export const submitDealerOrder = async (payload) => {
   const dealerPayload = buildDealerOrderPayload(payload)
-  const endpoint =
-    typeof window !== 'undefined' &&
-    window.location.protocol === 'http:' &&
-    directDealerOrderEndpoint
-      ? directDealerOrderEndpoint
-      : dealerOrderEndpoint
+  const endpoint = dealerOrderEndpoint
 
   logFrontendApiConfig()
   console.info(`[Dealer Order] Sending order to ${endpoint}`)

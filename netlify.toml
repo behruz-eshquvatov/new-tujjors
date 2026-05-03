@@ -4,11 +4,6 @@
   functions = "netlify/functions"
 
 [[redirects]]
-  from = "/api/salesdoc/login"
-  to = "/.netlify/functions/salesdoc-login"
-  status = 200
-
-[[redirects]]
   from = "/api/salesdoc/products"
   to = "/.netlify/functions/salesdoc-products"
   status = 200

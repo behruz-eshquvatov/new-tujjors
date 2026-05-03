@@ -222,7 +222,7 @@ const StorePage = () => {
     return () => {
       cancelled = true
     }
-  }, [dealerAccess.hasAccess, fallbackCategories])
+  }, [dealerAccess.dealerId, dealerAccess.hasAccess, fallbackCategories])
   const selectedFilterLabel =
     selectedCategory === ALL_CATEGORIES
       ? "Barcha bo'limlar"
