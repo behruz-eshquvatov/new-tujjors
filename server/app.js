@@ -1,11 +1,19 @@
 import dotenv from "dotenv";
 import express from "express";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { fetchDealerConfig, resolveDealerId } from "./dealerApi.js";
 import { sendDealerOrder } from "./dealerOrder.js";
 import { fetchSalesDocCatalog } from "./salesDoc.js";
 
 dotenv.config({ quiet: true });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, "../dist");
+const indexHtmlPath = path.join(distPath, "index.html");
 
 const app = express();
 
@@ -51,5 +59,13 @@ app.post("/api/dealers/send-order", async (request, response) => {
     });
   }
 });
+
+if (existsSync(indexHtmlPath)) {
+  app.use(express.static(distPath));
+
+  app.get(/.*/, (_request, response) => {
+    response.sendFile(indexHtmlPath);
+  });
+}
 
 export default app;

@@ -31,6 +31,14 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 - `npm run build`
 - `npm run preview`
 
+## VPS / Production
+
+- `npm install`
+- `npm run build`
+- `PORT=5173 npm start`
+- Nginx `savdo.tujjors.uz` ni shu Node process portiga proxy qiladi.
+- Production server `dist` frontend fayllarini va `/api/...` endpointlarni bitta origin orqali serve qiladi.
+
 ## Netlify
 
 - Netlify `dist` bilan birga `netlify/functions` papkasidagi serverless endpointlarni ham deploy qiladi.
