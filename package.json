@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n server,client -c green,blue \"npm run server\" \"vite\"",
+    "dev": "concurrently -n server,client -c green,blue \"npm run server:dev\" \"vite\"",
+    "server:dev": "node --watch server/dev.js",
     "server": "node --watch server/index.js",
     "start": "node server/index.js",
     "build": "vite build",

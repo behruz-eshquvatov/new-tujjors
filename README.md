@@ -8,7 +8,7 @@ Vite + React storefront with a SalesDoc proxy for local Express and Netlify Func
 2. `npm install` ishlating.
 3. `npm run dev` ishlating.
 
-`npm run dev` endi Vite client va Express serverni birga ishga tushiradi, backend fayllari o'zgarsa server avtomatik restart bo'ladi.
+`npm run dev` Vite clientni `http://localhost:5173` da, Express API serverni `http://127.0.0.1:3000` da birga ishga tushiradi. Backend fayllari o'zgarsa server avtomatik restart bo'ladi.
 
 Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali `http://127.0.0.1:3000` dagi Express serverga o'tadi. Agar Network tabda `/api/...` 502 ko'rsangiz, Express server ishlamayapti; terminalda `npm run dev` ni qayta ishga tushiring yoki alohida `npm run server` ishlatib `http://localhost:3000/health` ni tekshiring.
 
@@ -40,8 +40,42 @@ Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali
 - `npm install`
 - `npm run build`
 - `pm2 start ecosystem.config.cjs`
-- Nginx `savdo.tujjors.uz` ni shu Node process portiga proxy qiladi.
-- Production server `dist` frontend fayllarini va `/api/...` endpointlarni bitta origin orqali serve qiladi.
+- PM2 Node API serverni `http://127.0.0.1:3000` da ishga tushiradi.
+- Nginx frontend uchun `dist` papkasini serve qiladi.
+- Nginx faqat `/api/...` va `/health` requestlarini `http://127.0.0.1:3000` ga proxy qiladi.
+
+Nginx example:
+
+```nginx
+server {
+    server_name savdo.tujjors.uz;
+
+    root /path/to/new-tujjors/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
 
 ## Netlify
 
