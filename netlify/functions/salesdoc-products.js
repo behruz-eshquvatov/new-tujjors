@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 
 import { fetchDealerConfig, resolveDealerId } from "../../server/dealerApi.js";
 import { fetchSalesDocCatalog } from "../../server/salesDoc.js";
+import { fetchSmartupCatalog } from "../../server/smartup.js";
 
 dotenv.config({ quiet: true });
 
@@ -24,7 +25,10 @@ export const handler = async (event) => {
   try {
     const payload = event.body ? JSON.parse(event.body) : {};
     const dealerConfig = await fetchDealerConfig(resolveDealerId(payload));
-    const data = await fetchSalesDocCatalog(dealerConfig);
+    const data =
+      dealerConfig.integration === "smartup"
+        ? await fetchSmartupCatalog(dealerConfig)
+        : await fetchSalesDocCatalog(dealerConfig);
 
     return {
       statusCode: 200,

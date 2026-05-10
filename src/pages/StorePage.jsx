@@ -184,7 +184,7 @@ const StorePage = () => {
         setIsProductsLoading(true)
         setStatus({
           tone: 'info',
-          text: "SalesDoc mahsulotlari yuklanmoqda...",
+          text: 'Mahsulotlar yuklanmoqda...',
         })
 
         const salesDocData = await loadSalesDocProducts(dealerAccess.dealerId)
@@ -208,7 +208,7 @@ const StorePage = () => {
           text:
             error instanceof Error
               ? `${error.message} Statik mahsulotlar ko'rsatildi.`
-              : "SalesDoc ulanmagan. Statik mahsulotlar ko'rsatildi.",
+              : "Katalog ulanmagan. Statik mahsulotlar ko'rsatildi.",
         })
       } finally {
         if (!cancelled) {

@@ -219,6 +219,9 @@ const normalizeProduct = (product, categoryNameById, subCategoryNameById) => {
     fullImage: resolveAbsoluteAssetUrl(product?.imageUrl),
     stockLevel: resolveProductStockLevel(product),
     packQuantity: Number(product?.packQuantity) || 0,
+    priceType: compactText(product?.price_type || product?.priceType),
+    priceTypeCode: compactText(product?.price_type_code || product?.priceTypeCode),
+    warehouseCode: compactText(product?.warehouseCode || product?.warehouse_code),
     categoryId,
     subCategoryId,
     category: categoryNameById.get(categoryId) || categoryName || "Boshqa bo'lim",
@@ -319,6 +322,14 @@ export const loadSalesDocProducts = async (dealerId) => {
   const activeCategories = hasCategoryActiveFlags
     ? normalizedCategories.filter((item) => item.active === 'Y')
     : normalizedCategories
+
+  console.info('[SalesDoc] category data', {
+    rawCategories: categories,
+    normalizedCategories,
+    activeCategories,
+    hasCategoryActiveFlags,
+  })
+
   const allowedCategoryKeys = new Set(
     activeCategories.flatMap((item) => [item.id, item.name].filter(Boolean)),
   )

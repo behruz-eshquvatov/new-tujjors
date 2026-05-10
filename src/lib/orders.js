@@ -9,17 +9,59 @@ const compactText = (value) =>
 const normalizeDealerItems = (payload) => {
   if (Array.isArray(payload?.items)) {
     return payload.items.map((item) => ({
+      id: compactText(item?.id),
+      code: compactText(item?.code),
+      productCode:
+        compactText(item?.productCode) ||
+        compactText(item?.product_code) ||
+        compactText(item?.raw?.code) ||
+        compactText(item?.raw?.code_1C),
       name: compactText(item?.name),
       price: Number(item?.price) || 0,
       quantity: Number(item?.quantity) || 0,
+      priceType:
+        compactText(item?.priceType) ||
+        compactText(item?.price_type) ||
+        compactText(item?.raw?.price_type),
+      priceTypeCode:
+        compactText(item?.priceTypeCode) ||
+        compactText(item?.price_type_code) ||
+        compactText(item?.raw?.price_type_code),
+      warehouseCode:
+        compactText(item?.warehouseCode) ||
+        compactText(item?.warehouse_code) ||
+        compactText(item?.raw?.warehouseCode) ||
+        compactText(item?.raw?.warehouse_code),
+      raw: item?.raw,
     }))
   }
 
   if (Array.isArray(payload?.cart)) {
     return payload.cart.map((item) => ({
+      id: compactText(item?.id),
+      code: compactText(item?.code),
+      productCode:
+        compactText(item?.productCode) ||
+        compactText(item?.product_code) ||
+        compactText(item?.raw?.code) ||
+        compactText(item?.raw?.code_1C),
       name: compactText(item?.name),
       price: Number(item?.price) || 0,
       quantity: Number(item?.quantity) || 0,
+      priceType:
+        compactText(item?.priceType) ||
+        compactText(item?.price_type) ||
+        compactText(item?.raw?.price_type),
+      priceTypeCode:
+        compactText(item?.priceTypeCode) ||
+        compactText(item?.price_type_code) ||
+        compactText(item?.raw?.price_type_code),
+      warehouseCode:
+        compactText(item?.warehouseCode) ||
+        compactText(item?.warehouse_code) ||
+        compactText(item?.raw?.warehouseCode) ||
+        compactText(item?.raw?.warehouse_code),
+      raw: item?.raw,
     }))
   }
 
@@ -27,6 +69,7 @@ const normalizeDealerItems = (payload) => {
 }
 
 export const buildDealerOrderPayload = (payload) => ({
+  dealerId: compactText(payload?.dealerId) || compactText(payload?.dealer_id),
   name:
     compactText(payload?.name) ||
     compactText(payload?.customer?.name) ||

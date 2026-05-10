@@ -1,4 +1,10 @@
-import { getDealerApiBaseUrl } from "./dealerApi.js";
+import {
+  fetchDealerConfig,
+  getDealerApiBaseUrl,
+  isSmartupDealerId,
+  resolveDealerId,
+} from "./dealerApi.js";
+import { sendSmartupOrder } from "./smartup.js";
 
 const compactText = (value) =>
   typeof value === "string" ? value.trim() : "";
@@ -38,9 +44,30 @@ const normalizeCartItem = (item) => {
   const price = Number(item?.price) || 0;
 
   return {
+    id: compactText(item?.id),
+    code: compactText(item?.code),
+    productCode:
+      compactText(item?.productCode) ||
+      compactText(item?.product_code) ||
+      compactText(item?.raw?.code) ||
+      compactText(item?.raw?.code_1C),
     name: compactText(item?.name),
     price,
     quantity,
+    priceType:
+      compactText(item?.priceType) ||
+      compactText(item?.price_type) ||
+      compactText(item?.raw?.price_type),
+    priceTypeCode:
+      compactText(item?.priceTypeCode) ||
+      compactText(item?.price_type_code) ||
+      compactText(item?.raw?.price_type_code),
+    warehouseCode:
+      compactText(item?.warehouseCode) ||
+      compactText(item?.warehouse_code) ||
+      compactText(item?.raw?.warehouseCode) ||
+      compactText(item?.raw?.warehouse_code),
+    raw: item?.raw && typeof item.raw === "object" ? item.raw : undefined,
   };
 };
 
@@ -94,6 +121,7 @@ export const buildDealerOrderPayload = (payload) => {
       : [];
 
   return {
+    dealerId: resolveDealerId(payload),
     name: customer.name,
     phone: customer.phone,
     link,
@@ -138,13 +166,32 @@ const readErrorMessage = (payload, fallbackMessage) => {
 export const sendDealerOrder = async (payload) => {
   const dealerPayload = buildDealerOrderPayload(payload);
   validateDealerOrderPayload(dealerPayload);
+
+  if (isSmartupDealerId(dealerPayload.dealerId || dealerPayload.link)) {
+    const dealerConfig = await fetchDealerConfig(
+      dealerPayload.dealerId || dealerPayload.link,
+    );
+
+    return sendSmartupOrder(dealerConfig, dealerPayload);
+  }
+
   const dealerOrderEndpoint = getDealerOrderEndpoint();
+  const legacyDealerPayload = {
+    name: dealerPayload.name,
+    phone: dealerPayload.phone,
+    link: dealerPayload.link,
+    items: dealerPayload.items.map((item) => ({
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    })),
+  };
   const response = await fetch(dealerOrderEndpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(dealerPayload),
+    body: JSON.stringify(legacyDealerPayload),
   });
   const data = await readResponseBody(response);
 

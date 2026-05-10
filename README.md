@@ -27,6 +27,8 @@ Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali
 - `VITE_SALESDOC_ASSET_BASE_URL`
 - `DEALER_API_BASE_URL`
 - `DEALER_ORDER_ENDPOINT`
+- `SMARTUP_LOGIN`
+- `SMARTUP_PASSWORD`
 
 ## Build
 
@@ -47,6 +49,7 @@ Local devda browser `http://localhost:5173` ga kiradi, API esa Vite proxy orqali
 - Frontend dealer ID ni URL path dan oladi. Masalan `site/tvMxtrl0zP` bo'lsa, `tvMxtrl0zP` dealer ID sifatida ishlatiladi.
 - Server SalesDoc login, password, url va `price_type` ni `DEALER_API_BASE_URL/api/dealers/info/{dealerId}/` endpointidan oladi, shuning uchun ularni `.env` ichida saqlash shart emas.
 - Dealer info va order API default holatda `https://tujjors.uz` orqali ishlaydi.
+- 11 belgili dealer ID SmartAPI/Smartup integratsiyasi sifatida ishlaydi. SmartAPI login va parol dealer API yoki env orqali kelmasa, default `азамат@buxoroozod` / `020202` ishlatiladi.
 - Dealer buyurtma servisi ishlatilsa, `DEALER_ORDER_ENDPOINT` ni ham kiriting.
 - Frontend buyurtmalarni browserdan to'g'ridan-to'g'ri dealer endpointga yubormaydi; `/api/dealers/send-order` orqali serverless/Express proxy ishlatiladi.
 - Frontend API endpointlari doim same-origin ishlaydi, masalan `https://savdo.tujjors.uz/api/...`.

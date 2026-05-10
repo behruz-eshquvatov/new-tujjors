@@ -23,6 +23,9 @@ const FALLBACK_CATEGORY_TREE = [
 const resolveCategoryName = (item) =>
   item?.name || item?.categoryName || item?.productCategoryName || item?.title || ''
 
+const resolveCategoryId = (item) =>
+  item?.id || item?.CS_id || item?.SD_id || item?.code_1C || resolveCategoryName(item)
+
 const isVisibleCategory = (category) => {
   const active = typeof category?.active === 'string' ? category.active.trim().toUpperCase() : ''
 
@@ -42,21 +45,30 @@ const buildCategoryList = (categories, products = []) => {
     return accumulator
   }, {})
 
-  const mappedCategories = categories
+  const mappedCategoriesByName = new Map()
+
+  categories
     .filter(isVisibleCategory)
-    .map((category) => {
+    .forEach((category) => {
       const categoryName = resolveCategoryName(category)
+      const categoryId = resolveCategoryId(category)
 
       if (!categoryName) {
-        return null
+        return
       }
 
-      return {
+      if (mappedCategoriesByName.has(categoryName)) {
+        return
+      }
+
+      mappedCategoriesByName.set(categoryName, {
+        key: `${categoryId || categoryName}-${categoryName}`,
         name: categoryName,
         count: productCounts[categoryName] || 0,
-      }
+      })
     })
-    .filter(Boolean)
+
+  const mappedCategories = [...mappedCategoriesByName.values()]
 
   if (mappedCategories.length > 0) {
     return mappedCategories
@@ -86,7 +98,15 @@ const StoreHeader = ({
   const categoryDrawerRef = useRef(null)
 
   useEffect(() => {
-    setCategoryList(buildCategoryList(categories, products))
+    const nextCategoryList = buildCategoryList(categories, products)
+
+    console.info('[StoreHeader] category section data', {
+      rawCategories: categories,
+      productsCount: products.length,
+      visibleCategories: nextCategoryList,
+    })
+
+    setCategoryList(nextCategoryList)
   }, [categories, products])
 
   useEffect(() => {
@@ -240,7 +260,7 @@ const StoreHeader = ({
 
                     return (
                       <div
-                        key={category.name}
+                        key={category.key || category.name}
                         className="rounded-2xl border border-app-border bg-app-surface-muted"
                       >
                         <button

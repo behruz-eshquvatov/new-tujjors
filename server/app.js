@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { fetchDealerConfig, resolveDealerId } from "./dealerApi.js";
 import { sendDealerOrder } from "./dealerOrder.js";
 import { fetchSalesDocCatalog } from "./salesDoc.js";
+import { fetchSmartupCatalog } from "./smartup.js";
 
 dotenv.config({ quiet: true });
 
@@ -31,15 +32,22 @@ app.post("/api/salesdoc/login", (_request, response) => {
 });
 
 app.post("/api/salesdoc/products", async (request, response) => {
+  let dealerConfig = null;
+
   try {
-    const dealerConfig = await fetchDealerConfig(resolveDealerId(request.body || {}));
-    const data = await fetchSalesDocCatalog(dealerConfig);
+    dealerConfig = await fetchDealerConfig(resolveDealerId(request.body || {}));
+    const data =
+      dealerConfig.integration === "smartup"
+        ? await fetchSmartupCatalog(dealerConfig)
+        : await fetchSalesDocCatalog(dealerConfig);
 
     response.json(data);
   } catch (error) {
+    const integrationName = dealerConfig?.integration === "smartup" ? "Smartup" : "SalesDoc";
+
     response.status(error?.statusCode || 500).json({
       status: false,
-      error: "Failed to fetch SalesDoc catalog",
+      error: `Failed to fetch ${integrationName} catalog`,
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
