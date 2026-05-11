@@ -1,9 +1,11 @@
-import { Menu, Search, ShoppingCart, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, Menu, Search, ShoppingCart, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatCount } from '../lib/format'
 
 export const ALL_CATEGORIES = 'All'
 export const ALL_SUBCATEGORIES = 'All'
+export const UNCATEGORIZED_SUBCATEGORY = '__uncategorized__'
+const UNCATEGORIZED_SUBCATEGORY_LABEL = "Boshqa bo'limsiz"
  
 const FALLBACK_CATEGORY_TREE = [
   {
@@ -26,13 +28,69 @@ const resolveCategoryName = (item) =>
 const resolveCategoryId = (item) =>
   item?.id || item?.CS_id || item?.SD_id || item?.code_1C || resolveCategoryName(item)
 
+const resolveSubCategoryName = (item) =>
+  item?.name || item?.subCategoryName || item?.productSubCategoryName || item?.title || ''
+
+const resolveSubCategoryId = (item) =>
+  item?.id || item?.CS_id || item?.SD_id || item?.code_1C || resolveSubCategoryName(item)
+
+const resolveSubCategoryParentName = (item) => {
+  const parent = item?.category || item?.productCategory || item?.parentCategory
+
+  if (typeof parent === 'string' || typeof parent === 'number') {
+    return String(parent).trim()
+  }
+
+  return resolveCategoryName(parent)
+}
+
+const resolveSubCategoryParentId = (item) => {
+  const parent = item?.category || item?.productCategory || item?.parentCategory
+
+  if (typeof parent === 'string' || typeof parent === 'number') {
+    return String(parent).trim()
+  }
+
+  return resolveCategoryId(parent)
+}
+
 const isVisibleCategory = (category) => {
   const active = typeof category?.active === 'string' ? category.active.trim().toUpperCase() : ''
 
   return !active || active === 'Y'
 }
 
-const buildCategoryList = (categories, products = []) => {
+const resolveProductSortValue = (product) =>
+  Number.isFinite(product?.sortId) ? product.sortId : Number.MAX_SAFE_INTEGER
+
+const compareCatalogItems = (leftItem, rightItem) => {
+  if (leftItem.sortOrder !== rightItem.sortOrder) {
+    return leftItem.sortOrder - rightItem.sortOrder
+  }
+
+  return String(leftItem.name).localeCompare(String(rightItem.name))
+}
+
+const getSubCategorySortGroup = (subCategory) => {
+  if (subCategory.value === UNCATEGORIZED_SUBCATEGORY) {
+    return 1
+  }
+
+  return subCategory.count > 0 ? 0 : 2
+}
+
+const compareSubCategories = (leftItem, rightItem) => {
+  const leftGroup = getSubCategorySortGroup(leftItem)
+  const rightGroup = getSubCategorySortGroup(rightItem)
+
+  if (leftGroup !== rightGroup) {
+    return leftGroup - rightGroup
+  }
+
+  return compareCatalogItems(leftItem, rightItem)
+}
+
+const buildCategoryList = (categories, subCategories = [], products = []) => {
   const productCounts = products.reduce((accumulator, product) => {
     const categoryName = product?.category
 
@@ -44,8 +102,48 @@ const buildCategoryList = (categories, products = []) => {
 
     return accumulator
   }, {})
+  const productSortOrders = products.reduce((accumulator, product) => {
+    const categoryName = product?.category
+    const sortValue = resolveProductSortValue(product)
+
+    if (!categoryName) {
+      return accumulator
+    }
+
+    accumulator[categoryName] = Math.min(
+      accumulator[categoryName] ?? Number.MAX_SAFE_INTEGER,
+      sortValue,
+    )
+
+    return accumulator
+  }, {})
+  const subCategoryStats = products.reduce((accumulator, product) => {
+    const categoryName = product?.category
+    const categoryId = product?.categoryId
+    const subCategoryName = product?.subCategory
+
+    if (!categoryName || !subCategoryName) {
+      return accumulator
+    }
+
+    const key = `${categoryId || categoryName}::${subCategoryName}`
+    const current = accumulator.get(key) || {
+      categoryId,
+      categoryName,
+      name: subCategoryName,
+      count: 0,
+      sortOrder: Number.MAX_SAFE_INTEGER,
+    }
+
+    current.count += 1
+    current.sortOrder = Math.min(current.sortOrder, resolveProductSortValue(product))
+    accumulator.set(key, current)
+
+    return accumulator
+  }, new Map())
 
   const mappedCategoriesByName = new Map()
+  const mappedCategoriesById = new Map()
 
   categories
     .filter(isVisibleCategory)
@@ -65,10 +163,83 @@ const buildCategoryList = (categories, products = []) => {
         key: `${categoryId || categoryName}-${categoryName}`,
         name: categoryName,
         count: productCounts[categoryName] || 0,
+        sortOrder: productSortOrders[categoryName] ?? Number.MAX_SAFE_INTEGER,
+        subCategories: [],
       })
+
+      mappedCategoriesById.set(categoryId || categoryName, mappedCategoriesByName.get(categoryName))
     })
 
+  for (const subCategory of subCategories) {
+    const subCategoryName = resolveSubCategoryName(subCategory)
+    const categoryId = resolveSubCategoryParentId(subCategory)
+    const categoryName = resolveSubCategoryParentName(subCategory)
+    const category = mappedCategoriesById.get(categoryId) || mappedCategoriesByName.get(categoryName)
+
+    if (!subCategoryName || !category) {
+      continue
+    }
+
+    const stats =
+      subCategoryStats.get(`${categoryId || categoryName}::${subCategoryName}`) ||
+      subCategoryStats.get(`${category.name}::${subCategoryName}`)
+
+    category.subCategories.push({
+      key: `${resolveSubCategoryId(subCategory) || subCategoryName}-${categoryName}`,
+      name: subCategoryName,
+      count: stats?.count || 0,
+      sortOrder: stats?.sortOrder ?? Number.MAX_SAFE_INTEGER,
+    })
+  }
+
+  for (const subCategory of subCategoryStats.values()) {
+    const category =
+      mappedCategoriesById.get(subCategory.categoryId) ||
+      mappedCategoriesByName.get(subCategory.categoryName)
+
+    if (!category) {
+      continue
+    }
+
+    if (category.subCategories.some((item) => item.name === subCategory.name)) {
+      continue
+    }
+
+    category.subCategories.push({
+      key: `${subCategory.categoryName}-${subCategory.name}`,
+      name: subCategory.name,
+      count: subCategory.count,
+      sortOrder: subCategory.sortOrder,
+    })
+  }
+
   const mappedCategories = [...mappedCategoriesByName.values()]
+    .map((category) => {
+      const subCategoryProductCount = category.subCategories.reduce(
+        (sum, subCategory) => sum + subCategory.count,
+        0,
+      )
+      const uncategorizedCount = Math.max(0, category.count - subCategoryProductCount)
+      const subCategoryList =
+        uncategorizedCount > 0
+          ? [
+              ...category.subCategories,
+              {
+                key: `${category.name}-uncategorized`,
+                name: UNCATEGORIZED_SUBCATEGORY_LABEL,
+                value: UNCATEGORIZED_SUBCATEGORY,
+                count: uncategorizedCount,
+                sortOrder: Number.MAX_SAFE_INTEGER,
+              },
+            ]
+          : category.subCategories
+
+      return {
+        ...category,
+        subCategories: subCategoryList.sort(compareSubCategories),
+      }
+    })
+    .sort(compareCatalogItems)
 
   if (mappedCategories.length > 0) {
     return mappedCategories
@@ -77,11 +248,14 @@ const buildCategoryList = (categories, products = []) => {
   return FALLBACK_CATEGORY_TREE.map((category) => ({
     ...category,
     count: productCounts[category.name] || 0,
+    sortOrder: productSortOrders[category.name] ?? Number.MAX_SAFE_INTEGER,
+    subCategories: [],
   }))
 }
 
 const StoreHeader = ({
   categories = [],
+  subCategories = [],
   products = [],
   search,
   onSearchChange,
@@ -91,23 +265,25 @@ const StoreHeader = ({
   selectedSubCategory,
   onSelectAllCategories,
   onSelectCategory,
+  onSelectSubCategory,
 }) => {
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
-  const [categoryList, setCategoryList] = useState(() => buildCategoryList([], products))
+  const [expandedCategoryKeys, setExpandedCategoryKeys] = useState(() => new Set())
+  const categoryList = useMemo(
+    () => buildCategoryList(categories, subCategories, products),
+    [categories, subCategories, products],
+  )
   const categoryTriggerRef = useRef(null)
   const categoryDrawerRef = useRef(null)
 
   useEffect(() => {
-    const nextCategoryList = buildCategoryList(categories, products)
-
     console.info('[StoreHeader] category section data', {
       rawCategories: categories,
+      rawSubCategories: subCategories,
       productsCount: products.length,
-      visibleCategories: nextCategoryList,
+      visibleCategories: categoryList,
     })
-
-    setCategoryList(nextCategoryList)
-  }, [categories, products])
+  }, [categories, subCategories, products, categoryList])
 
   useEffect(() => {
     if (!categoryMenuOpen) {
@@ -150,6 +326,25 @@ const StoreHeader = ({
   const handleSelectCategory = (category) => {
     onSelectCategory(category)
     setCategoryMenuOpen(false)
+  }
+
+  const handleSelectSubCategory = (category, subCategory) => {
+    onSelectSubCategory(category, subCategory)
+    setCategoryMenuOpen(false)
+  }
+
+  const toggleCategoryExpanded = (categoryKey) => {
+    setExpandedCategoryKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys)
+
+      if (nextKeys.has(categoryKey)) {
+        nextKeys.delete(categoryKey)
+      } else {
+        nextKeys.add(categoryKey)
+      }
+
+      return nextKeys
+    })
   }
 
   const totalCategoryCount = categoryList.reduce((sum, category) => sum + (category.count || 0), 0)
@@ -244,7 +439,7 @@ const StoreHeader = ({
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         selectedCategory === ALL_CATEGORIES
                           ? 'bg-white/20 text-app-accent-contrast'
-                          : 'bg-app-surface text-app-text-soft'
+                          : 'bg-emerald-100 text-emerald-800'
                       }`}
                     >
                       {formatCount(totalCategoryCount)}
@@ -254,50 +449,139 @@ const StoreHeader = ({
 
                 <div className="mt-3 space-y-2">
                   {categoryList.map((category) => {
+                    const categoryKey = category.key || category.name
+                    const subCategoryListId = `subcategories-${categoryKey.replace(/\s+/g, '-')}`
+                    const subCategoriesToRender =
+                      category.subCategories.length > 0
+                        ? category.subCategories
+                        : category.count > 0
+                          ? [
+                              {
+                                key: `${categoryKey}-uncategorized`,
+                                name: UNCATEGORIZED_SUBCATEGORY_LABEL,
+                                value: UNCATEGORIZED_SUBCATEGORY,
+                                count: category.count,
+                                sortOrder: Number.MAX_SAFE_INTEGER,
+                              },
+                            ]
+                          : []
+                    const hasSubCategories = subCategoriesToRender.length > 0
+                    const isExpanded = expandedCategoryKeys.has(categoryKey)
                     const isCategoryActive =
                       selectedCategory === category.name &&
                       selectedSubCategory === ALL_SUBCATEGORIES
 
                     return (
                       <div
-                        key={category.key || category.name}
+                        key={categoryKey}
                         className="rounded-2xl border border-app-border bg-app-surface-muted"
                       >
-                        <button
-                          type="button"
-                          onClick={() => handleSelectCategory(category.name)}
-                          className={`w-full rounded-2xl px-4 py-4 text-left transition ${
+                        <div
+                          className={`flex items-center gap-2 rounded-2xl p-2 transition ${
                             isCategoryActive
                               ? 'bg-app-accent text-app-accent-contrast shadow-soft'
-                              : 'text-app-text hover:bg-app-surface'
+                              : 'text-app-text'
                           }`}
                         >
-                          <span className="flex items-center justify-between gap-3">
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-bold">
-                                {category.name}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectCategory(category.name)}
+                            className={`min-w-0 flex-1 rounded-xl px-3 py-3 text-left transition ${
+                              isCategoryActive ? 'hover:bg-white/10' : 'hover:bg-app-surface'
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-3">
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-bold">
+                                  {category.name}
+                                </span>
+                                <span
+                                  className={`mt-1 block text-xs ${
+                                    isCategoryActive
+                                      ? 'text-app-accent-contrast/80'
+                                      : 'text-app-text-soft'
+                                  }`}
+                                >
+                                  Mahsulot kategoriyasi
+                                </span>
                               </span>
                               <span
-                                className={`mt-1 block text-xs ${
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                   isCategoryActive
-                                    ? 'text-app-accent-contrast/80'
-                                    : 'text-app-text-soft'
+                                    ? 'bg-white/20 text-app-accent-contrast'
+                                    : 'bg-emerald-100 text-emerald-800'
                                 }`}
                               >
-                                Mahsulot kategoriyasi
+                                {formatCount(category.count)}
                               </span>
                             </span>
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                isCategoryActive
-                                  ? 'bg-white/20 text-app-accent-contrast'
-                                  : 'bg-app-surface text-app-text-soft'
-                              }`}
-                            >
-                              {formatCount(category.count)}
-                            </span>
-                          </span>
-                        </button>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => toggleCategoryExpanded(categoryKey)}
+                            disabled={!hasSubCategories}
+                            aria-expanded={isExpanded}
+                            aria-controls={subCategoryListId}
+                            aria-label={`${isExpanded ? 'Close' : 'Open'} ${category.name} subcategories`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+                              isCategoryActive
+                                ? 'bg-white/15 text-app-accent-contrast hover:bg-white/25'
+                                : 'text-app-text-soft hover:bg-app-surface hover:text-app-text'
+                            } ${hasSubCategories ? '' : 'cursor-not-allowed opacity-40'}`}
+                          >
+                            <ChevronDown
+                              size={16}
+                              className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </button>
+                        </div>
+
+                        {hasSubCategories && isExpanded && (
+                          <div
+                            id={subCategoryListId}
+                            className="space-y-1 border-t border-app-border px-2 py-2"
+                          >
+                            {subCategoriesToRender.map((subCategory) => {
+                              const subCategoryValue = subCategory.value || subCategory.name
+                              const isSubCategoryActive =
+                                selectedCategory === category.name &&
+                                selectedSubCategory === subCategoryValue
+
+                              return (
+                                <button
+                                  key={subCategory.key || subCategory.name}
+                                  type="button"
+                                  onClick={() =>
+                                    handleSelectSubCategory(category.name, subCategoryValue)
+                                  }
+                                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                                    isSubCategoryActive
+                                      ? 'bg-app-accent text-app-accent-contrast shadow-soft'
+                                      : subCategory.count > 0
+                                        ? 'text-app-text hover:bg-app-surface'
+                                        : 'text-app-text-soft'
+                                  }`}
+                                >
+                                  <span className="min-w-0 truncate font-thin">
+                                    {subCategory.name}
+                                  </span>
+                                  <span
+                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                      isSubCategoryActive
+                                        ? 'bg-white/20 text-app-accent-contrast'
+                                        : subCategory.count > 0
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : 'bg-gray-200 text-gray-500'
+                                    }`}
+                                  >
+                                    {formatCount(subCategory.count)}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

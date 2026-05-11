@@ -355,7 +355,7 @@ export const loadSalesDocProducts = async (dealerId) => {
     ),
     subCategories: buildUniqueCollection(
       [...normalizedSubCategories, ...derivedSubCategories],
-      (item) => item.id || item.name,
+      (item) => `${item.categoryId || item.category || ''}:${item.id || item.name}`,
     ),
     products: normalizedProducts,
   }

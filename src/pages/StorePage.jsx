@@ -11,6 +11,7 @@ import ProductCard, { ProductCardSkeleton } from '../components/ProductCard'
 import StoreHeader, {
   ALL_CATEGORIES,
   ALL_SUBCATEGORIES,
+  UNCATEGORIZED_SUBCATEGORY,
 } from '../components/StoreHeader.jsx'
 import { formatCount } from '../lib/format'
 import { submitDealerOrder } from '../lib/orders'
@@ -138,6 +139,7 @@ const StorePage = () => {
   const dealerAccess = useMemo(() => resolveDealerAccess(), [])
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [subCategories, setSubCategories] = useState([])
   const [isProductsLoading, setIsProductsLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES)
@@ -172,6 +174,7 @@ const StorePage = () => {
       if (!dealerAccess.hasAccess) {
         setProducts([])
         setCategories([])
+        setSubCategories([])
         setStatus({
           tone: 'error',
           text: 'No dealer found',
@@ -195,6 +198,7 @@ const StorePage = () => {
 
         setProducts(salesDocData.products)
         setCategories(salesDocData.categories)
+        setSubCategories(salesDocData.subCategories)
         setStatus(null)
       } catch (error) {
         if (cancelled) {
@@ -203,6 +207,7 @@ const StorePage = () => {
 
         setProducts(staticProducts)
         setCategories(fallbackCategories)
+        setSubCategories([])
         setStatus({
           tone: 'error',
           text:
@@ -227,7 +232,11 @@ const StorePage = () => {
     selectedCategory === ALL_CATEGORIES
       ? "Barcha bo'limlar"
       : selectedSubCategory !== ALL_SUBCATEGORIES
-        ? `${selectedCategory} / ${selectedSubCategory}`
+        ? `${selectedCategory} / ${
+            selectedSubCategory === UNCATEGORIZED_SUBCATEGORY
+              ? "Boshqa bo'limsiz"
+              : selectedSubCategory
+          }`
         : selectedCategory
 
   const filteredProducts = useMemo(() => {
@@ -238,7 +247,9 @@ const StorePage = () => {
 
       if (
         selectedSubCategory !== ALL_SUBCATEGORIES &&
-        product.subCategory !== selectedSubCategory
+        (selectedSubCategory === UNCATEGORIZED_SUBCATEGORY
+          ? product.subCategory
+          : product.subCategory !== selectedSubCategory)
       ) {
         return false
       }
@@ -320,6 +331,11 @@ const StorePage = () => {
   const selectCategory = (category) => {
     setSelectedCategory(category)
     setSelectedSubCategory(ALL_SUBCATEGORIES)
+  }
+
+  const selectSubCategory = (category, subCategory) => {
+    setSelectedCategory(category)
+    setSelectedSubCategory(subCategory)
   }
 
   const openQuantityEditor = (product) => {
@@ -494,6 +510,7 @@ const StorePage = () => {
     <main className="flex min-h-dvh flex-col overflow-hidden bg-app-bg">
       <StoreHeader
         categories={categories}
+        subCategories={subCategories}
         products={products}
         search={search}
         onSearchChange={setSearch}
@@ -503,6 +520,7 @@ const StorePage = () => {
         selectedSubCategory={selectedSubCategory}
         onSelectAllCategories={selectAllCategories}
         onSelectCategory={selectCategory}
+        onSelectSubCategory={selectSubCategory}
       />
 
       <section className="mx-auto mt-24 flex w-full max-w-7xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-4">
