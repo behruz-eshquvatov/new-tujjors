@@ -470,7 +470,7 @@ const StoreHeader = ({
                     const isCategoryActive =
                       selectedCategory === category.name &&
                       selectedSubCategory === ALL_SUBCATEGORIES
-
+// salom hair
                     return (
                       <div
                         key={categoryKey}
