@@ -8,7 +8,7 @@ const smartupConfigKeys = {
   password: ["smartup_password", "smartupPassword", "SMARTUP_PASSWORD"],
   serverName: ["smartup_server_name", "smartupServerName", "server_name", "serverName"],
   projectCode: ["smartup_project_code", "smartupProjectCode", "project_code", "projectCode"],
-  priceTypeCode: ["smartup_price_type_code", "smartupPriceTypeCode", "price_type_code", "priceTypeCode"],
+  // priceTypeCode: ["smartup_price_type_code", "smartupPriceTypeCode", "price_type_code", "priceTypeCode"],
   warehouseCode: ["smartup_warehouse_code", "smartupWarehouseCode", "warehouse_code", "warehouseCode"],
   filialId: ["smartup_filial_id", "smartupFilialId", "filial_id", "filialId"],
   filialCode: ["smartup_filial_code", "smartupFilialCode", "filial_code", "filialCode"],
@@ -102,6 +102,17 @@ const readErrorMessage = (payload, fallbackMessage) => {
   return fallbackMessage;
 };
 
+const fetchDealerInfo = async (baseUrl, dealerId) => {
+  const endpoint = new URL(`api/dealers/info/${dealerId}/`, baseUrl);
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  const data = await readJsonResponse(response);
+
+  return { response, data, endpoint };
+};
+
 export const resolveDealerId = (value) => {
   if (typeof value === "string" || typeof value === "number") return compactText(String(value));
   return compactText(value?.dealerId || value?.dealer_id || value?.link);
@@ -117,6 +128,12 @@ const readFirstText = (source, keys) => {
   return "";
 };
 
+const deriveSmartupProjectCode = (login) => {
+  const [, projectCode] = compactText(login).split("@");
+
+  return compactText(projectCode);
+};
+
 export const fetchDealerConfig = async (dealerId) => {
   const resolvedDealerId = resolveDealerId(dealerId);
 
@@ -125,16 +142,14 @@ export const fetchDealerConfig = async (dealerId) => {
   }
 
   const baseUrl = normalizeBaseUrl(getDealerApiBaseUrl());
-  const endpoint = new URL(`api/dealers/info/${resolvedDealerId}/`, baseUrl);
   let response = null;
   let data = null;
 
   try {
-    response = await fetch(endpoint, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    data = await readJsonResponse(response);
+    const dealerInfo = await fetchDealerInfo(baseUrl, resolvedDealerId);
+
+    response = dealerInfo.response;
+    data = dealerInfo.data;
   } catch (error) {
     if (!isSmartupDealerId(resolvedDealerId)) throw error;
   }
@@ -150,13 +165,44 @@ export const fetchDealerConfig = async (dealerId) => {
 
   // --- SMARTUP INTEGRATION PATH ---
   if (isSmartupDealerId(resolvedDealerId)) {
+    // const salesDocDealerId = resolvedDealerId.slice(0, -1);
+    // let salesDocDealerData = null;
+
+    // try {
+    //   const salesDocDealerInfo = await fetchDealerInfo(baseUrl, salesDocDealerId);
+
+    //   if (salesDocDealerInfo.response.ok) {
+    //     salesDocDealerData = salesDocDealerInfo.data;
+    //   } else {
+    //     console.warn("Smartup paired SalesDoc dealer info API rejected the request.", {
+    //       smartupDealerId: resolvedDealerId,
+    //       salesDocDealerId,
+    //       status: salesDocDealerInfo.response.status,
+    //       details: readErrorMessage(
+    //         salesDocDealerInfo.data,
+    //         `Dealer info API rejected the request with status ${salesDocDealerInfo.response.status}.`,
+    //       ),
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.warn("Smartup paired SalesDoc dealer info API request failed.", {
+    //     smartupDealerId: resolvedDealerId,
+    //     salesDocDealerId,
+    //     details: error instanceof Error ? error.message : "Unknown error",
+    //   });
+    // }
+
+    // const pairedSalesDocPriceType = compactText(salesDocDealerData?.price_type);
     const login =
-      compactText(process.env.SMARTUP_LOGIN) ||
       readFirstText(data, smartupConfigKeys.login) ||
+      compactText(data?.login) ||
+      compactText(data?.username) ||
+      compactText(process.env.SMARTUP_LOGIN) ||
       defaultSmartupLogin;
     const password =
-      compactText(process.env.SMARTUP_PASSWORD) ||
       readFirstText(data, smartupConfigKeys.password) ||
+      compactText(data?.password) ||
+      compactText(process.env.SMARTUP_PASSWORD) ||
       defaultSmartupPassword;
 
     if (!login || !password) {
@@ -167,19 +213,24 @@ export const fetchDealerConfig = async (dealerId) => {
       dealerId: resolvedDealerId,
       integration: "smartup",
       serverName:
-        compactText(process.env.SMARTUP_SERVER_NAME) ||
         readFirstText(data, smartupConfigKeys.serverName) ||
+        compactText(data?.url) ||
+        compactText(process.env.SMARTUP_SERVER_NAME) ||
         defaultSmartupServerName,
       login,
       password,
       projectCode:
-        compactText(process.env.SMARTUP_PROJECT_CODE) ||
         readFirstText(data, smartupConfigKeys.projectCode) ||
+        compactText(process.env.SMARTUP_PROJECT_CODE) ||
+        deriveSmartupProjectCode(login) ||
         defaultSmartupProjectCode,
-      priceTypeCode:
-        compactText(process.env.SMARTUP_PRICE_TYPE_CODE) ||
-        readFirstText(data, smartupConfigKeys.priceTypeCode) ||
-        compactText(data?.price_type),
+      // Keep Smartup price type empty so Smartup returns its default prices.
+      priceTypeCode: "",
+      // priceTypeCode:
+      //   pairedSalesDocPriceType ||
+      //   compactText(process.env.SMARTUP_PRICE_TYPE_CODE) ||
+      //   readFirstText(data, smartupConfigKeys.priceTypeCode) ||
+      //   compactText(data?.price_type),
       warehouseCode:
         compactText(process.env.SMARTUP_WAREHOUSE_CODE) ||
         readFirstText(data, smartupConfigKeys.warehouseCode),
@@ -210,7 +261,11 @@ export const fetchDealerConfig = async (dealerId) => {
     // View your cleaned credentials here
     console.log("✅ Smartup Config Processed:", { 
       login: smartupConfig.login, 
-      password: smartupConfig.password 
+      password: smartupConfig.password,
+      serverName: smartupConfig.serverName,
+      projectCode: smartupConfig.projectCode,
+      // priceTypeCode: smartupConfig.priceTypeCode,
+      // pairedSalesDocDealerId: salesDocDealerId,
     });
 
     return smartupConfig;

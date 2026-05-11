@@ -182,10 +182,11 @@ const buildPriceMap = (prices) =>
       priceTypes.find((priceType) => toFiniteNumber(priceType?.price) > 0) ||
       priceTypes[0];
     const price = toFiniteNumber(selectedPrice?.price);
-    const priceTypeCode = compactText(selectedPrice?.price_type_code);
+    // const priceTypeCode = compactText(selectedPrice?.price_type_code);
 
     if (productCode) {
-      map.set(productCode, { price, priceTypeCode });
+      // map.set(productCode, { price, priceTypeCode });
+      map.set(productCode, { price });
     }
 
     return map;
@@ -230,7 +231,8 @@ const resolveProductGroupRefs = (product, categoryByCode, subCategoryByCode) => 
 
 const normalizeSmartupProduct = (
   product,
-  { categoryByCode, subCategoryByCode, priceByCode, stockByCode, defaultPriceTypeCode },
+  { categoryByCode, subCategoryByCode, priceByCode, stockByCode },
+  // { categoryByCode, subCategoryByCode, priceByCode, stockByCode, defaultPriceTypeCode },
 ) => {
   const productCode = resolveInventoryCode(product);
   const priceInfo = priceByCode.get(productCode) || {};
@@ -262,7 +264,7 @@ const normalizeSmartupProduct = (
     priceValue: toFiniteNumber(priceInfo.price),
     stockLevel: toFiniteNumber(stockInfo.quantity),
     packQuantity: toFiniteNumber(product?.box_quant),
-    price_type: priceInfo.priceTypeCode || defaultPriceTypeCode,
+    // price_type: priceInfo.priceTypeCode || defaultPriceTypeCode,
     warehouseCode: stockInfo.warehouseCode,
     productCategory: category,
     productSubCategory: subCategory,
@@ -290,7 +292,8 @@ export const fetchSmartupCatalog = async (config) => {
         config,
         "/b/anor/api/v2/mkf/product_price$export",
         {
-          price_type_codes: config.priceTypeCode ? [config.priceTypeCode] : [],
+          // price_type_codes: config.priceTypeCode ? [config.priceTypeCode] : [],
+          price_type_codes: [],
         },
         "Failed to fetch Smartup prices.",
       ),
@@ -327,7 +330,8 @@ export const fetchSmartupCatalog = async (config) => {
         subCategoryByCode,
         priceByCode,
         stockByCode,
-        defaultPriceTypeCode: config.priceTypeCode,
+        // defaultPriceTypeCode: config.priceTypeCode,
+        defaultPriceTypeCode: "",
       }),
     )
     .filter((product) => product && product.stockLevel > 0);
@@ -383,11 +387,12 @@ export const buildSmartupOrderPayload = (config, payload) => {
         expiry_date: "",
         on_balance: "",
         order_quant: String(quantity),
-        price_type_code:
-          compactText(item?.priceTypeCode) ||
-          compactText(item?.priceType) ||
-          config.priceTypeCode ||
-          "",
+        // price_type_code:
+        //   compactText(item?.priceTypeCode) ||
+        //   compactText(item?.priceType) ||
+        //   config.priceTypeCode ||
+        //   "",
+        price_type_code: "",
         product_price: String(toFiniteNumber(item?.price)),
         margin_kind: "",
         margin_value: "",

@@ -36,6 +36,12 @@ app.post("/api/salesdoc/products", async (request, response) => {
 
   try {
     dealerConfig = await fetchDealerConfig(resolveDealerId(request.body || {}));
+    console.info("[Dealer catalog] resolved integration", {
+      dealerId: dealerConfig.dealerId,
+      integration: dealerConfig.integration,
+      // priceTypeCode: dealerConfig.priceTypeCode,
+    });
+
     const data =
       dealerConfig.integration === "smartup"
         ? await fetchSmartupCatalog(dealerConfig)
